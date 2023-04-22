@@ -1,1 +1,1 @@
-My dev workflow config for my new m1x mac pro :) 
+My dotfiles for M1 Mac
