@@ -1,5 +1,4 @@
-{ pkgs, ... }:
-
+{pkgs, ...}:
 with pkgs; [
   awscli2
   azure-cli
@@ -15,5 +14,6 @@ with pkgs; [
   pulumi-bin
   ripgrep
   terraform
+  wrangler
   viddy
 ]

@@ -10,13 +10,19 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
   };
 
-  outputs = inputs@{ flake-parts, self, ... }:
-    let
-      systems = import ./system { inherit inputs; };
-    in
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "aarch64-darwin" "aarch64-linux" "x86_64-darwin" "x86_64-linux" ];
-      perSystem = { config, self', inputs', pkgs, system, ... }: {
+  outputs = inputs @ {flake-parts, ...}: let
+    systems = import ./system {inherit inputs;};
+  in
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
+      perSystem = {
+        config,
+        self',
+        inputs',
+        pkgs,
+        system,
+        ...
+      }: {
         packages = {
           zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
             name = "Zestsystem";
@@ -29,10 +35,9 @@
         darwinConfigurations = {
           work-darwin = systems.mkDarwin {
             system = "aarch64-darwin";
-            username = "zestsystem";
+            username = "mikeyim";
           };
         };
-
       };
     };
 }

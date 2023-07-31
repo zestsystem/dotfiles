@@ -5,6 +5,7 @@ configstore
 yarn
 nvm
 yamllint
+result
 
 
 planetscale
