@@ -95,8 +95,8 @@ in {
     };
 
     enable = true;
-    userEmail = "4638629+erikreinert@users.noreply.github.com";
-    userName = "Erik Reinert";
+    userEmail = "mikeyim@utc.gg";
+    userName = "zestsystem";
 
     extraConfig = {
       color.ui = true;
