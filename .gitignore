@@ -1,18 +1,9 @@
 .git
-configstore
 .DS_Store
 
-yarn
-nvm
-yamllint
 result
-
 
 planetscale
 github-copilot
 stripe
 
-secrets.fish
-fish_variables
-
-nvim/.config/nvim/plugin/packer_compiled.lua
