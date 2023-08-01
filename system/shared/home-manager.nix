@@ -182,7 +182,14 @@ in {
 
       bind-key -r f run-shell "tmux neww ./.config/scripts/tmux-stuff/tmux-sessionizer"
     '';
-    plugins = with pkgs; [customTmux.catppuccin tmuxPlugins.resurrect tmuxPlugins.sessionist tmuxPlugins.yank];
+    plugins = with pkgs; [
+      customTmux.catppuccin
+      tmuxPlugins.resurrect
+      tmuxPlugins.sessionist
+      tmuxPlugins.yank
+      tmuxPlugins.tmux-fzf
+      tmuxPlugins.tilish
+    ];
     shell = "${pkgs.zsh}/bin/zsh";
     terminal =
       if isDarwin
