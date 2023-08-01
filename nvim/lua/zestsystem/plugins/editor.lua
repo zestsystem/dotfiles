@@ -1,1 +1,1 @@
-/nix/store/sasvwrlqqkj5rr4h2cfnx87aw1a9qyf7-home-manager-files/.config/nvim/lua/zestsystem/plugins/editor.lua
+/nix/store/sfggfp30i23hbx2cwj4bcfbfyx1s8bs9-home-manager-files/.config/nvim/lua/zestsystem/plugins/editor.lua

@@ -180,13 +180,9 @@ in {
       set-option -a terminal-overrides ",*256col*:RGB"
 
 
-      bind-key -r f run-shell "tmux neww ~/.local/bin/tmux-sessionizer"
-
-      bind-key -r i run-shell "tmux neww tmux-cht.sh"
-      bind-key -r U run-shell "~/.local/bin/tmux-sessionizer ~/projects/utc"
-      bind-key -r P run-shell "~/.local/bin/tmux-sessionizer ~/projects"
+      bind-key -r f run-shell "tmux neww ./.config/scripts/tmux-stuff/tmux-sessionizer"
     '';
-    plugins = with pkgs; [customTmux.catppuccin];
+    plugins = with pkgs; [customTmux.catppuccin tmuxPlugins.resurrect tmuxPlugins.sessionist tmuxPlugins.yank];
     shell = "${pkgs.zsh}/bin/zsh";
     terminal =
       if isDarwin
