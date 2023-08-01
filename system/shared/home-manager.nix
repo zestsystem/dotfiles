@@ -218,7 +218,7 @@ in {
     ];
 
     initExtra = ''
-      tmux attach
+      neofetch
     '';
   };
 }

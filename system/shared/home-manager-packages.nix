@@ -8,6 +8,7 @@ with pkgs; [
   google-cloud-sdk
   jq
   just
+  neofetch
   k9s
   kind
   kubectl
