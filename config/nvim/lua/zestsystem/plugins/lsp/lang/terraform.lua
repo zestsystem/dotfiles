@@ -28,7 +28,6 @@ return {
 					nls.builtins.formatting.terraform_fmt,
 					nls.builtins.diagnostics.terraform_validate,
 				})
-				print("checking null-ls sources from terraform...", opts.sources)
 			end
 		end,
 	},

@@ -170,17 +170,34 @@ in {
     recursive = true;
   };
 
+  programs.nnn = {
+    enable = true;
+    #package = pkgs.nnn.override ({ withNerdIcons = true; }); # https://github.com/intel/intel-one-mono/issues/9
+    plugins = {
+      mappings = {
+        K = "preview-tui";
+      };
+      src =
+        (pkgs.fetchFromGitHub {
+          owner = "jarun";
+          repo = "nnn";
+          rev = "18b5371d08e341ddefd2d023e3f7d201cac22b89";
+          sha256 = "sha256-L6p7bd5XXOHBZWei21czHC0N0Ne1k2YMuc6QhVdSxcQ=";
+        })
+        + "/plugins";
+    };
+  };
+
   programs.tmux = {
     enable = true;
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
-
-
-      bind-key -r f run-shell "tmux neww ./.config/scripts/tmux-stuff/tmux-sessionizer"
     '';
     plugins = with pkgs; [
       customTmux.catppuccin
+      tmuxPlugins.sensible
       tmuxPlugins.resurrect
+      tmuxPlugins.continuum
       tmuxPlugins.sessionist
       tmuxPlugins.yank
       tmuxPlugins.tmux-fzf
