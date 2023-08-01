@@ -114,7 +114,7 @@ in {
     enable = true;
     settings = {
       foreground = "#CAD3F5";
-      background = "#24273A";
+      background = "#0F0015";
       selection_foreground = "#24273A";
       selection_background = "#F4DBD6";
       cursor = "#F4DBD6";
@@ -178,6 +178,8 @@ in {
     enable = true;
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
+
+
       bind-key -r f run-shell "tmux neww ~/.local/bin/tmux-sessionizer"
 
       bind-key -r i run-shell "tmux neww tmux-cht.sh"
