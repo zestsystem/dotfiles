@@ -196,6 +196,11 @@ in {
     enable = true;
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
+      bind-key -r f run-shell "tmux neww ~/.local/bin/tmux-sessionizer"
+
+      bind-key -r i run-shell "tmux neww tmux-cht.sh"
+      bind-key -r U run-shell "~/.local/bin/tmux-sessionizer ~/projects/utc"
+      bind-key -r P run-shell "~/.local/bin/tmux-sessionizer ~/projects"
     '';
     plugins = with pkgs; [customTmux.catppuccin];
     shell = "${pkgs.zsh}/bin/zsh";
