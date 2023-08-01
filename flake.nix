@@ -24,10 +24,6 @@
         ...
       }: {
         packages = {
-          zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
-            name = "Zestsystem";
-            src = ./config/nvim;
-          };
         };
       };
 

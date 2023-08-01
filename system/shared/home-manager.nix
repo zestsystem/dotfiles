@@ -1,8 +1,4 @@
-{ inputs }:
-
-{ pkgs, ... }:
-
-let
+{inputs}: {pkgs, ...}: let
   catppuccin-bat = pkgs.fetchFromGitHub {
     owner = "catppuccin";
     repo = "bat";
@@ -10,7 +6,7 @@ let
     sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
   };
   isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
-  jsonnet = import ./jsonnet.nix { inherit pkgs; };
+  jsonnet = import ./jsonnet.nix {inherit pkgs;};
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
     src = pkgs.fetchFromGitHub {
@@ -26,8 +22,7 @@ let
     rev = "da8dee3ccaf882d1bf653c34850041025616ceb5";
     sha256 = "sha256-MHb9Q7mwgWAs99vom6a2aODB40I9JTBaJnbvTYbMwiA=";
   };
-in
-{
+in {
   #---------------------------------------------------------------------
   # home
   #---------------------------------------------------------------------
@@ -55,9 +50,10 @@ in
 
   programs.bat = {
     enable = true;
-    config = { theme = "catppuccin"; };
+    config = {theme = "catppuccin";};
     themes = {
-      catppuccin = builtins.readFile
+      catppuccin =
+        builtins.readFile
         (catppuccin-bat + "/Catppuccin-macchiato.tmTheme");
     };
   };
@@ -188,97 +184,6 @@ in
     };
   };
 
-  programs.neovim = {
-    enable = true;
-
-    plugins = with pkgs; [
-      # languages
-      vim-just
-      vimPlugins.nvim-lspconfig
-      vimPlugins.nvim-treesitter.withAllGrammars
-      vimPlugins.rust-tools-nvim
-
-      # telescope
-      vimPlugins.plenary-nvim
-      vimPlugins.popup-nvim
-      vimPlugins.telescope-nvim
-
-      # theme
-      vimPlugins.catppuccin-nvim
-
-      # floaterm
-      vimPlugins.vim-floaterm
-
-      # extras
-      (vimPlugins.ChatGPT-nvim.overrideAttrs (old: {
-        src = fetchFromGitHub {
-          owner = "jackMort";
-          repo = "ChatGPT.nvim";
-          rev = "f499559f636676498692a2f19e74b077cbf52839";
-          sha256 = "sha256-98daaRkdrTZyNZuQPciaeRNuzyS52bsha4yyyAALcog=";
-        };
-      }))
-      vimPlugins.copilot-lua
-      vimPlugins.gitsigns-nvim
-      vimPlugins.lualine-nvim
-      vimPlugins.nerdcommenter
-      vimPlugins.noice-nvim
-      vimPlugins.nui-nvim
-      vimPlugins.nvim-colorizer-lua
-      vimPlugins.nvim-notify
-      vimPlugins.nvim-treesitter-context
-      vimPlugins.nvim-ts-rainbow2
-      #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
-
-      # configuration
-      inputs.self.packages.${pkgs.system}.thealtf4stream-nvim
-    ];
-
-    extraConfig = ''
-      lua << EOF
-        require 'TheAltF4Stream'.init()
-      EOF
-    '';
-
-    extraPackages = with pkgs; [
-      # languages
-      jsonnet
-      nodejs
-      python310Full
-      rustc
-
-      # language servers
-      gopls
-      haskell-language-server
-      jsonnet-language-server
-      lua-language-server
-      nil
-      nodePackages."bash-language-server"
-      nodePackages."diagnostic-languageserver"
-      nodePackages."dockerfile-language-server-nodejs"
-      nodePackages."pyright"
-      nodePackages."typescript"
-      nodePackages."typescript-language-server"
-      nodePackages."vscode-langservers-extracted"
-      nodePackages."yaml-language-server"
-      rust-analyzer
-      terraform-ls
-
-      # formatters
-      gofumpt
-      golines
-      nixpkgs-fmt
-      python310Packages.black
-      rustfmt
-
-      # tools
-      cargo
-      gcc
-      ghc
-      lazydocker
-      yarn
-    ];
-  };
 
   programs.nnn = {
     enable = true;
@@ -287,12 +192,14 @@ in
       mappings = {
         K = "preview-tui";
       };
-      src = (pkgs.fetchFromGitHub {
-        owner = "jarun";
-        repo = "nnn";
-        rev = "18b5371d08e341ddefd2d023e3f7d201cac22b89";
-        sha256 = "sha256-L6p7bd5XXOHBZWei21czHC0N0Ne1k2YMuc6QhVdSxcQ=";
-      }) + "/plugins";
+      src =
+        (pkgs.fetchFromGitHub {
+          owner = "jarun";
+          repo = "nnn";
+          rev = "18b5371d08e341ddefd2d023e3f7d201cac22b89";
+          sha256 = "sha256-L6p7bd5XXOHBZWei21czHC0N0Ne1k2YMuc6QhVdSxcQ=";
+        })
+        + "/plugins";
     };
   };
 
@@ -301,9 +208,12 @@ in
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
     '';
-    plugins = with pkgs; [ customTmux.catppuccin ];
+    plugins = with pkgs; [customTmux.catppuccin];
     shell = "${pkgs.zsh}/bin/zsh";
-    terminal = if isDarwin then "screen-256color" else "xterm-256color";
+    terminal =
+      if isDarwin
+      then "screen-256color"
+      else "xterm-256color";
   };
 
   programs.zsh = {
@@ -314,21 +224,26 @@ in
 
     oh-my-zsh = {
       enable = true;
-      plugins = [ "git" ];
+      plugins = ["git"];
       theme = "robbyrussell";
     };
 
     shellAliases = {
       cat = "bat";
-      ll = if isDarwin then "n" else "n -P K";
+      ll =
+        if isDarwin
+        then "n"
+        else "n -P K";
       s = ''doppler run --config "nixos" --project "$(whoami)"'';
       wt = "git worktree";
     };
 
-    plugins = [{
-      name = "zsh-z";
-      src = zsh-z;
-    }];
+    plugins = [
+      {
+        name = "zsh-z";
+        src = zsh-z;
+      }
+    ];
 
     initExtra = ''
       kindc () {
