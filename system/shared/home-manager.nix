@@ -17,10 +17,6 @@ in {
   # home
   #---------------------------------------------------------------------
 
-  home.file.".config/nvim/after/ftplugin/markdown.vim".text = ''
-    setlocal wrap
-  '';
-
   home.sessionVariables = {
     CHARM_HOST = "localhost";
     EDITOR = "nvim";
