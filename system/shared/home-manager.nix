@@ -102,7 +102,7 @@ in {
       color.ui = true;
       diff.colorMoved = "zebra";
       fetch.prune = true;
-      github.user = "erikreinert";
+      github.user = "zestsystem";
       init.defaultBranch = "main";
       merge.conflictstyle = "diff3";
       push.autoSetupRemote = true;
@@ -161,22 +161,17 @@ in {
     theme = "Catppuccin-Macchiato";
   };
 
-  programs.nnn = {
+  programs.neovim = {
     enable = true;
-    #package = pkgs.nnn.override ({ withNerdIcons = true; }); # https://github.com/intel/intel-one-mono/issues/9
-    plugins = {
-      mappings = {
-        K = "preview-tui";
-      };
-      src =
-        (pkgs.fetchFromGitHub {
-          owner = "jarun";
-          repo = "nnn";
-          rev = "18b5371d08e341ddefd2d023e3f7d201cac22b89";
-          sha256 = "sha256-L6p7bd5XXOHBZWei21czHC0N0Ne1k2YMuc6QhVdSxcQ=";
-        })
-        + "/plugins";
-    };
+    extraConfig = ":luafile './.config/nvim/init.lua'";
+    viAlias = true;
+    vimAlias = true;
+    vimdiffAlias = true;
+  };
+
+  home.file."./.config/nvim" = {
+    source = ../../config/nvim;
+    recursive = true;
   };
 
   programs.tmux = {
