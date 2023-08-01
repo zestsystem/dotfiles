@@ -161,19 +161,6 @@ in {
     theme = "Catppuccin-Macchiato";
   };
 
-  programs.lazygit = {
-    enable = true;
-    settings = {
-      git = {
-        paging = {
-          colorArg = "always";
-          pager = "delta --color-only --dark --paging=never";
-          useConfig = false;
-        };
-      };
-    };
-  };
-
   programs.nnn = {
     enable = true;
     #package = pkgs.nnn.override ({ withNerdIcons = true; }); # https://github.com/intel/intel-one-mono/issues/9
