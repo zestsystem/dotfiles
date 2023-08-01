@@ -170,24 +170,6 @@ in {
     recursive = true;
   };
 
-  programs.nnn = {
-    enable = true;
-    #package = pkgs.nnn.override ({ withNerdIcons = true; }); # https://github.com/intel/intel-one-mono/issues/9
-    plugins = {
-      mappings = {
-        K = "preview-tui";
-      };
-      src =
-        (pkgs.fetchFromGitHub {
-          owner = "jarun";
-          repo = "nnn";
-          rev = "18b5371d08e341ddefd2d023e3f7d201cac22b89";
-          sha256 = "sha256-L6p7bd5XXOHBZWei21czHC0N0Ne1k2YMuc6QhVdSxcQ=";
-        })
-        + "/plugins";
-    };
-  };
-
   programs.tmux = {
     enable = true;
     extraConfig = ''
@@ -224,10 +206,6 @@ in {
 
     shellAliases = {
       cat = "bat";
-      ll =
-        if isDarwin
-        then "n"
-        else "n -P K";
       s = ''doppler run --config "nixos" --project "$(whoami)"'';
       wt = "git worktree";
     };
@@ -240,42 +218,7 @@ in {
     ];
 
     initExtra = ''
-      kindc () {
-        cat <<EOF | kind create cluster --config=-
-      kind: Cluster
-      apiVersion: kind.x-k8s.io/v1alpha4
-      nodes:
-      - role: control-plane
-        kubeadmConfigPatches:
-        - |
-          kind: InitConfiguration
-          nodeRegistration:
-            kubeletExtraArgs:
-              node-labels: "ingress-ready=true"
-        extraPortMappings:
-        - containerPort: 80
-          hostPort: 8080
-          protocol: TCP
-        - containerPort: 443
-          hostPort: 8443
-          protocol: TCP
-      EOF
-      }
-      n () {
-        if [ -n $NNNLVL ] && [ "$NNNLVL" -ge 1 ]; then
-          echo "nnn is already running"
-          return
-        fi
-
-        export NNN_TMPFILE="$HOME/.config/nnn/.lastd"
-
-        nnn -adeHo "$@"
-
-        if [ -f "$NNN_TMPFILE" ]; then
-          . "$NNN_TMPFILE"
-          rm -f "$NNN_TMPFILE" > /dev/null
-        fi
-      }
+      tmux attach
     '';
   };
 }
