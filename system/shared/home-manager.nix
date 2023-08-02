@@ -221,6 +221,8 @@ in {
 
     initExtra = ''
       neofetch
+      if [ "$TMUX" = "" ]; then tmux; fi
+
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
     '';
   };
