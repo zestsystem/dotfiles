@@ -174,6 +174,8 @@ in {
     enable = true;
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
+
+      bind-key -r f run-shell "tmux neww tmux-sessionizer"
     '';
     plugins = with pkgs; [
       customTmux.catppuccin
@@ -219,6 +221,7 @@ in {
 
     initExtra = ''
       neofetch
+      bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
     '';
   };
 }

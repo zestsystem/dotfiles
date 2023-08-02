@@ -1,5 +1,6 @@
 {username}: {pkgs, ...}: let
   shared-overlays = import ../shared/overlays.nix;
+  tmux-sessionizer = import ../shared/tmux-sessionizer.nix {inherit pkgs;};
 in {
   nix = {
     package = pkgs.nixUnstable;
@@ -23,6 +24,8 @@ in {
     config.allowUnfree = true;
     overlays = [shared-overlays];
   };
+
+  environment.systemPackages = [tmux-sessionizer];
 
   programs = {
     zsh.enable = true;
