@@ -1,0 +1,21 @@
+{pkgs, ...}:
+with pkgs; [
+  awscli2
+  azure-cli
+  doppler
+  fd
+  fzf
+  gh
+  google-cloud-sdk
+  jq
+  just
+  neofetch
+  k9s
+  kind
+  kubectl
+  pulumi-bin
+  ripgrep
+  terraform
+  wrangler
+  viddy
+]
