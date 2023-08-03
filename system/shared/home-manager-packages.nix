@@ -6,16 +6,10 @@ with pkgs; [
   fd
   fzf
   gh
-  google-cloud-sdk
   jq
   just
   neofetch
-  k9s
-  kind
-  kubectl
-  pulumi-bin
+  nurl
   ripgrep
   terraform
-  wrangler
-  viddy
 ]
