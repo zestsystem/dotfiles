@@ -1,1 +1,1 @@
-/nix/store/7phaldg8gcra8zilplqwmri709025i6n-home-manager-files/.config/nvim/lua/zestsystem/plugins/treesitter.lua
+/nix/store/y92ikz4gk988d83hz1i156gf1qw4nkqz-home-manager-files/.config/nvim/lua/zestsystem/plugins/treesitter.lua
