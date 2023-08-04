@@ -13,6 +13,7 @@ with pkgs; [
   kind
   kubectl
   neofetch
+  nurl
   pulumi-bin
   ripgrep
   terraform
