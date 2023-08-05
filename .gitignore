@@ -5,3 +5,9 @@ result
 
 github-copilot
 
+
+nvim/**
+tmux/**
+bat/**
+kitty/**
+git/**
