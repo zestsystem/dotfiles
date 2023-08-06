@@ -259,6 +259,7 @@ return {
 	},
 
 	-- languages
+	{ import = "zestsystem/plugins/lsp/lang/go" },
 	{ import = "zestsystem/plugins/lsp/lang/json" },
 	{ import = "zestsystem/plugins/lsp/lang/nix" },
 	{ import = "zestsystem/plugins/lsp/lang/tailwind" },
