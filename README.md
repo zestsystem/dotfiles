@@ -1,1 +1,1 @@
-My dotfiles for M1 Mac
+My Nix dotfiles
