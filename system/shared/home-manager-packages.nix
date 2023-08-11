@@ -13,7 +13,6 @@ with pkgs; [
   k9s
   kind
   kubectl
-  neofetch
   nurl
   pulumi-bin
   ripgrep
