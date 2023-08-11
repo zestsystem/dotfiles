@@ -260,6 +260,7 @@ return {
 
 	-- languages
 	{ import = "zestsystem/plugins/lsp/lang/go" },
+	{ import = "zestsystem/plugins/lsp/lang/graphql" },
 	{ import = "zestsystem/plugins/lsp/lang/json" },
 	{ import = "zestsystem/plugins/lsp/lang/just" },
 	{ import = "zestsystem/plugins/lsp/lang/nix" },
