@@ -7,6 +7,7 @@ with pkgs; [
   fzf
   gh
   google-cloud-sdk
+  nodejs-18_x
   jq
   just
   k9s
