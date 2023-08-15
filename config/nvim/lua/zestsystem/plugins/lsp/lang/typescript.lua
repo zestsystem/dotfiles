@@ -141,31 +141,31 @@ return {
 			local i = ls.insert_node
 
 			ls.add_snippets("typescript", {
-				s("gen$", {
-					t("function* ($)"),
+				s("gen_", {
+					t("function* (_)"),
 					t({ "{", "\t" }),
 					i(0),
 					t({ "", "}" }),
 				}),
-				s("egen$", {
+				s("egen_", {
 					t("Effect.gen("),
-					t("function* ($)"),
+					t("function* (_)"),
 					t({ "{", "\t" }),
 					i(0),
 					t({ "", "}" }),
 					t(")"),
 				}),
-				s("yield$", {
-					t("yield* $"),
+				s("yield_", {
+					t("yield* _"),
 					t("("),
 					i(0),
 					t(")"),
 				}),
-				s("cyield$", {
+				s("cyield_", {
 					t("const "),
 					i(1),
 					t(" = "),
-					t("yield* $"),
+					t("yield* _"),
 					t("("),
 					i(0),
 					t(")"),
