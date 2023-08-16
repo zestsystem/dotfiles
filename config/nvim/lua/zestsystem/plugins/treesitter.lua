@@ -33,6 +33,7 @@ return {
 				"bash",
 				"c",
 				"html",
+				"css",
 				"javascript",
 				"json",
 				"lua",
