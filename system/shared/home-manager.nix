@@ -220,7 +220,7 @@ in {
     ];
 
     initExtra = ''
-      if [ "$TMUX" = "" ]; then tmux a; fi
+      if [ "$TMUX" = "" ]; then tmux a || tmux new; fi
 
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
     '';
