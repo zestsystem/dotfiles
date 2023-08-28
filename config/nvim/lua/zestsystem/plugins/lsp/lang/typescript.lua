@@ -140,7 +140,7 @@ return {
 			local t = ls.text_node
 			local i = ls.insert_node
 
-			ls.add_snippets("typescript", {
+			local effectSnippets = {
 				s("gen_", {
 					t("function* (_)"),
 					t({ "{", "\t" }),
@@ -175,7 +175,10 @@ return {
 					i(0),
 					t({ "", ")" }),
 				}),
-			})
+			}
+
+			ls.add_snippets("javascript", effectSnippets)
+			ls.add_snippets("typescript", effectSnippets)
 		end,
 	},
 }
