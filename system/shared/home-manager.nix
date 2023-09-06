@@ -165,7 +165,7 @@ in {
     vimdiffAlias = true;
   };
 
-  home.file."./.config/nvim" = {
+  xdg.configFile.nvim = {
     source = ../../config/nvim;
     recursive = true;
   };
