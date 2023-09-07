@@ -271,5 +271,5 @@ return {
 	{ import = "zestsystem/plugins/lsp/lang/terraform" },
 
 	{ import = "zestsystem/plugins/lsp/formatting/prettier" },
-	{ import = "zestsystem/plugins/lsp/linting/eslint" },
+	--	{ import = "zestsystem/plugins/lsp/linting/eslint" },
 }
