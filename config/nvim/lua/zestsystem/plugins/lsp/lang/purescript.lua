@@ -9,11 +9,11 @@ return {
 		---@class PluginLspOpts
 		opts = {
 			servers = {
-				-- purescriptls will be automatically installed with mason and loaded with lspconfig
 				purescriptls = {
 					settings = {
 						purescript = {
 							addSpagoSources = true,
+							addNpmPath = true,
 							formatter = "purs-tidy",
 						},
 					},

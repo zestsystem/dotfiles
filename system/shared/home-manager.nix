@@ -163,6 +163,44 @@ in {
     viAlias = true;
     vimAlias = true;
     vimdiffAlias = true;
+
+    plugins = with pkgs; [
+      # languages
+      vim-just
+      vimPlugins.nvim-lspconfig
+      nodejs
+      python310Full
+      rustc
+
+      # language servers
+      gopls
+      haskell-language-server
+      jsonnet-language-server
+      lua-language-server
+      nil
+      nodePackages."bash-language-server"
+      nodePackages."diagnostic-languageserver"
+      nodePackages."dockerfile-language-server-nodejs"
+      nodePackages."pyright"
+      nodePackages."typescript"
+      nodePackages."typescript-language-server"
+      nodePackages."vscode-langservers-extracted"
+      nodePackages."yaml-language-server"
+      rust-analyzer
+      terraform-ls
+
+      # formatters
+      gofumpt
+      golines
+      nixpkgs-fmt
+      python310Packages.black
+      rustfmt
+
+      # tools
+      cargo
+      gcc
+      ghc
+    ];
   };
 
   xdg.configFile.nvim = {

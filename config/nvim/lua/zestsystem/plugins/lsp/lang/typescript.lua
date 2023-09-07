@@ -15,7 +15,6 @@ return {
 		"neovim/nvim-lspconfig",
 		dependencies = { "jose-elias-alvarez/typescript.nvim" },
 		opts = {
-			-- make sure mason installs the server
 			servers = {
 				---@type lspconfig.options.tsserver
 				tsserver = {
@@ -83,15 +82,6 @@ return {
 	{
 		"mfussenegger/nvim-dap",
 		optional = true,
-		dependencies = {
-			{
-				"williamboman/mason.nvim",
-				opts = function(_, opts)
-					opts.ensure_installed = opts.ensure_installed or {}
-					table.insert(opts.ensure_installed, "js-debug-adapter")
-				end,
-			},
-		},
 		opts = function()
 			local dap = require("dap")
 			if not dap.adapters["pwa-node"] then
@@ -101,12 +91,6 @@ return {
 					port = "${port}",
 					executable = {
 						command = "node",
-						-- 💀 Make sure to update this path to point to your installation
-						args = {
-							require("mason-registry").get_package("js-debug-adapter"):get_install_path()
-								.. "/js-debug/src/dapDebugServer.js",
-							"${port}",
-						},
 					},
 				}
 			end

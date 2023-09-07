@@ -18,7 +18,6 @@ return {
 			version = false, -- last release is way too old
 		},
 		opts = {
-			-- make sure mason installs the server
 			servers = {
 				jsonls = {
 					-- lazy-load schemastore when needed
