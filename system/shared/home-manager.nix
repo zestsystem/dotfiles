@@ -6,6 +6,16 @@
     sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
   };
   isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
+  vim-just = pkgs.vimUtils.buildVimPlugin {
+    name = "vim-just";
+    nativeBuildInputs = with pkgs; [pkg-config readline];
+    src = pkgs.fetchFromGitHub {
+      owner = "NoahTheDuke";
+      repo = "vim-just";
+      rev = "927b41825b9cd07a40fc15b4c68635c4b36fa923";
+      sha256 = "sha256-BmxYWUVBzTowH68eWNrQKV1fNN9d1hRuCnXqbEagRoY=";
+    };
+  };
   zsh-z = pkgs.fetchFromGitHub {
     owner = "agkozak";
     repo = "zsh-z";
@@ -159,7 +169,6 @@ in {
 
   programs.neovim = {
     enable = true;
-    extraConfig = ":luafile './.config/nvim/init.lua'";
     viAlias = true;
     vimAlias = true;
     vimdiffAlias = true;
@@ -168,13 +177,50 @@ in {
       # languages
       vim-just
       vimPlugins.nvim-lspconfig
+      vimPlugins.nvim-treesitter.withAllGrammars
+      vimPlugins.rust-tools-nvim
+
+      # telescope
+      vimPlugins.plenary-nvim
+      vimPlugins.popup-nvim
+      vimPlugins.telescope-nvim
+
+      # theme
+      vimPlugins.rose-pine
+
+      # extras
+      vimPlugins.ChatGPT-nvim
+      vimPlugins.copilot-lua
+      vimPlugins.gitsigns-nvim
+      vimPlugins.lualine-nvim
+      vimPlugins.nerdcommenter
+      vimPlugins.noice-nvim
+      vimPlugins.nui-nvim
+      vimPlugins.nvim-colorizer-lua
+      vimPlugins.nvim-notify
+      vimPlugins.nvim-treesitter-context
+      vimPlugins.nvim-ts-rainbow2
+      vimPlugins.vim-fugitive
+      #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
+
+      # configuration
+      inputs.self.packages.${pkgs.system}.goofysystem-nvim
+    ];
+
+   extraConfig = ''
+      lua << EOF
+        require 'goofysystem'.init()
+      EOF
+    '';
+    extraPackages = with pkgs; [
+      # languages
+      jsonnet
       nodejs
       python310Full
       rustc
 
       # language servers
       gopls
-      haskell-language-server
       jsonnet-language-server
       lua-language-server
       nil
@@ -200,12 +246,9 @@ in {
       cargo
       gcc
       ghc
+      yarn
     ];
-  };
 
-  xdg.configFile.nvim = {
-    source = ../../config/nvim;
-    recursive = true;
   };
 
   programs.tmux = {

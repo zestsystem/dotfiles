@@ -24,6 +24,10 @@
         ...
       }: {
         packages = {
+            goofysystem-nvim = pkgs.vimUtils.buildVimPlugin {
+                name = "Goofysystem";
+                src = ./config/nvim;
+            };
         };
       };
 
