@@ -214,8 +214,6 @@ return {
 			return {
 				root_dir = require("null-ls.utils").root_pattern(".null-ls-root", ".neoconf.json", "Makefile", ".git"),
 				sources = {
-					nls.builtins.formatting.fish_indent,
-					nls.builtins.diagnostics.fish,
 					nls.builtins.formatting.stylua,
 					nls.builtins.formatting.shfmt,
 					-- nls.builtins.diagnostics.flake8,
@@ -261,6 +259,7 @@ return {
 	-- languages
 	{ import = "zestsystem/plugins/lsp/lang/go" },
 	{ import = "zestsystem/plugins/lsp/lang/graphql" },
+	{ import = "zestsystem/plugins/lsp/lang/haskell" },
 	{ import = "zestsystem/plugins/lsp/lang/json" },
 	{ import = "zestsystem/plugins/lsp/lang/just" },
 	{ import = "zestsystem/plugins/lsp/lang/nix" },
