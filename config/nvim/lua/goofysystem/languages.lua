@@ -164,6 +164,13 @@ local function init()
                 ['nil'] = {
                     formatting = { command = { "nixpkgs-fmt" } },
                 },
+            },
+        },
+        purescriptls = {
+            settings = {
+                purescript = {
+                    formatter = "purs-tidy"
+                }
             }
         },
         pyright = {

@@ -181,6 +181,7 @@ in
       vimPlugins.nvim-lspconfig
       vimPlugins.nvim-treesitter.withAllGrammars
       vimPlugins.rust-tools-nvim
+      vimPlugins.purescript-vim
 
       # telescope
       vimPlugins.plenary-nvim
@@ -238,6 +239,7 @@ in
       nodePackages."bash-language-server"
       nodePackages."diagnostic-languageserver"
       nodePackages."dockerfile-language-server-nodejs"
+      nodePackages."purescript-language-server"
       nodePackages."pyright"
       nodePackages."svelte-language-server"
       nodePackages."typescript"
