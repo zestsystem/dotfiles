@@ -203,7 +203,15 @@ in
       vimPlugins.nvim-treesitter-context
       vimPlugins.nvim-ts-rainbow2
       vimPlugins.vim-fugitive
+
       vimPlugins.luasnip
+      # autocomplete
+      vimPlugins.nvim-cmp
+      vimPlugins.cmp-nvim-lsp
+      vimPlugins.cmp-buffer
+      vimPlugins.cmp-path
+      vimPlugins.friendly-snippets
+      vimPlugins.cmp_luasnip
       #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
 
       # configuration

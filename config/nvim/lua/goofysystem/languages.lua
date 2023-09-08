@@ -3,6 +3,7 @@ local lspconfig = require 'lspconfig'
 local rust_tools = require 'rust-tools'
 local treesitter = require 'nvim-treesitter.configs'
 local treesitter_context = require 'treesitter-context'
+local cmp = require 'cmp'
 
 local function autocmd(args)
     local event = args[1]
@@ -52,6 +53,27 @@ local function on_attach(client, buffer)
 end
 
 local function init()
+    -- Completion setup
+    cmp.setup({
+        snippet = {
+            expand = function(args)
+                require('luasnip').lsp_expand(args.body)
+            end,
+        },
+        mapping = cmp.mapping.preset.insert({
+            ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+            ['<C-f>'] = cmp.mapping.scroll_docs(4),
+            ['<C-Space>'] = cmp.mapping.complete(),
+            ['<C-e>'] = cmp.mapping.abort(),
+            ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+        }),
+        sources = cmp.config.sources({
+            { name = "nvim_lsp" },
+            { name = "friendly-snippets" },
+            { name = "luasnip" },
+        }, { { name = "buffer" } }, { { name = "path" } })
+    })
+
     -- Copilot setup
     copilot.setup {
         suggestion = {
