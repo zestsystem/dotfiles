@@ -177,6 +177,7 @@ local function init()
                 },
             },
         },
+        svelte = {},
         terraformls = {},
         tsserver = {},
         yamlls = {
