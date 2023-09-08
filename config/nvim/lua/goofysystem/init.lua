@@ -6,6 +6,7 @@ local function init()
     require 'goofysystem.telescope'.init()
     require 'goofysystem.git-related'.init()
     require 'goofysystem.snippets'.init()
+    require 'goofysystem.tools'.init()
 end
 
 return {

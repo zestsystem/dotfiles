@@ -204,6 +204,7 @@ in
       vimPlugins.nvim-treesitter-context
       vimPlugins.nvim-ts-rainbow2
       vimPlugins.vim-fugitive
+      vimPlugins.harpoon
 
       vimPlugins.luasnip
       # autocomplete
