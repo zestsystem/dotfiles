@@ -203,6 +203,7 @@ in
       vimPlugins.nvim-treesitter-context
       vimPlugins.nvim-ts-rainbow2
       vimPlugins.vim-fugitive
+      vimPlugins.luasnip
       #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
 
       # configuration
