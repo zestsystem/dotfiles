@@ -78,8 +78,12 @@ local function init()
     copilot.setup {
         suggestion = {
             auto_trigger = true,
+            keymap = {
+                accept = "<C-y>",
+            }
         }
     }
+
 
     -- Rust specific setup
     rust_tools.setup {
