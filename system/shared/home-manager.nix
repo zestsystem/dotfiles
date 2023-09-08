@@ -1,4 +1,5 @@
-{inputs}: {pkgs, ...}: let
+{ inputs }: { pkgs, ... }:
+let
   catppuccin-bat = pkgs.fetchFromGitHub {
     owner = "catppuccin";
     repo = "bat";
@@ -8,7 +9,7 @@
   isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
-    nativeBuildInputs = with pkgs; [pkg-config readline];
+    nativeBuildInputs = with pkgs; [ pkg-config readline ];
     src = pkgs.fetchFromGitHub {
       owner = "NoahTheDuke";
       repo = "vim-just";
@@ -22,7 +23,8 @@
     rev = "da8dee3ccaf882d1bf653c34850041025616ceb5";
     sha256 = "sha256-MHb9Q7mwgWAs99vom6a2aODB40I9JTBaJnbvTYbMwiA=";
   };
-in {
+in
+{
   #---------------------------------------------------------------------
   # home
   #---------------------------------------------------------------------
@@ -46,11 +48,11 @@ in {
 
   programs.bat = {
     enable = true;
-    config = {theme = "catppuccin";};
+    config = { theme = "catppuccin"; };
     themes = {
       catppuccin =
         builtins.readFile
-        (catppuccin-bat + "/Catppuccin-macchiato.tmTheme");
+          (catppuccin-bat + "/Catppuccin-macchiato.tmTheme");
     };
   };
 
@@ -207,7 +209,7 @@ in {
       inputs.self.packages.${pkgs.system}.goofysystem-nvim
     ];
 
-   extraConfig = ''
+    extraConfig = ''
       lua << EOF
         require 'goofysystem'.init()
       EOF
@@ -283,7 +285,7 @@ in {
 
     oh-my-zsh = {
       enable = true;
-      plugins = ["git"];
+      plugins = [ "git" ];
       theme = "robbyrussell";
     };
 
