@@ -18,13 +18,13 @@ local function init()
     local options = { noremap = true }
 
     -- Builtin
-    map('n', '<leader>fg', '<CMD>lua require("telescope.builtin").git_files{}<CR>', options)
-    map('n', '<leader>ff', '<CMD>lua require("telescope.builtin").find_files{ hidden = true }<CR>', options)
-    map('n', '<leader>fl', '<CMD>lua require("telescope.builtin").live_grep()<CR>', options)
-    map('n', '<leader>fb', '<CMD>lua require("telescope.builtin").buffers()<CR>', options)
-    map('n', '<leader>fh', '<CMD>lua require("telescope.builtin").help_tags()<CR>', options)
-    map('n', '<leader>fd', '<CMD>lua require("telescope.builtin").diagnostics()<CR>', options)
-    map('n', '<leader>fr', '<CMD>lua require("telescope.builtin").registers()<CR>', options)
+    map('n', '<leader>pg', '<CMD>lua require("telescope.builtin").git_files{}<CR>', options)
+    map('n', '<leader>pf', '<CMD>lua require("telescope.builtin").find_files{ hidden = true }<CR>', options)
+    map('n', '<leader>ps', '<CMD>lua require("telescope.builtin").live_grep()<CR>', options)
+    map('n', '<leader>pb', '<CMD>lua require("telescope.builtin").buffers()<CR>', options)
+    map('n', '<leader>ph', '<CMD>lua require("telescope.builtin").help_tags()<CR>', options)
+    map('n', '<leader>pd', '<CMD>lua require("telescope.builtin").diagnostics()<CR>', options)
+    map('n', '<leader>pr', '<CMD>lua require("telescope.builtin").registers()<CR>', options)
 
     -- Language Servers
     map('n', '<leader>lsd', '<CMD>lua require("telescope.builtin").lsp_definitions{}<CR>', options)
