@@ -180,6 +180,7 @@ in
       vim-just
       vimPlugins.nvim-lspconfig
       vimPlugins.nvim-treesitter.withAllGrammars
+      vimPlugins.null-ls-nvim
       vimPlugins.rust-tools-nvim
       vimPlugins.purescript-vim
 
