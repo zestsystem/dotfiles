@@ -25,8 +25,8 @@
         , ...
         }: {
           packages = {
-            goofysystem-nvim = pkgs.vimUtils.buildVimPlugin {
-              name = "Goofysystem";
+            zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
+              name = "Zestsystem";
               src = ./config/nvim;
             };
           };

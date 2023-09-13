@@ -218,12 +218,12 @@ in
       #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
 
       # configuration
-      inputs.self.packages.${pkgs.system}.goofysystem-nvim
+      inputs.self.packages.${pkgs.system}.zestsystem-nvim
     ];
 
     extraConfig = ''
       lua << EOF
-        require 'goofysystem'.init()
+        require 'zestsystem'.init()
       EOF
     '';
     extraPackages = with pkgs; [
