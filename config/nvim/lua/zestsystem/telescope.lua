@@ -6,7 +6,8 @@ local function init()
             file_ignore_patterns = {
                 "node_modules/.*",
                 "secret.d/.*",
-                "%.pem"
+                "%.pem",
+                ".git/.*",
             }
         }
     }
