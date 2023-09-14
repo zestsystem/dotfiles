@@ -247,6 +247,7 @@ in
       nodePackages."typescript"
       nodePackages."typescript-language-server"
       nodePackages."vscode-langservers-extracted"
+      nodePackages."@tailwindcss/language-server"
       nodePackages."yaml-language-server"
       rust-analyzer
       terraform-ls

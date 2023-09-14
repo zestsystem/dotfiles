@@ -200,6 +200,7 @@ local function init()
             },
         },
         svelte = {},
+        tailwindcss = {},
         terraformls = {},
         tsserver = {},
         yamlls = {
