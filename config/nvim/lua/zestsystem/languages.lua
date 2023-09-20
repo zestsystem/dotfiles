@@ -4,7 +4,7 @@ local rust_tools = require 'rust-tools'
 local treesitter = require 'nvim-treesitter.configs'
 local treesitter_context = require 'treesitter-context'
 local cmp = require 'cmp'
-local null_ls= require 'null-ls'
+local null_ls = require 'null-ls'
 
 local function autocmd(args)
     local event = args[1]
@@ -50,6 +50,7 @@ local function on_attach(client, buffer)
         autocmd_clear { group = augroup_highlight, buffer = buffer }
         autocmd { "CursorHold", augroup_highlight, vim.lsp.buf.document_highlight, buffer }
         autocmd { "CursorMoved", augroup_highlight, vim.lsp.buf.clear_references, buffer }
+        autocmd { "TextYankPost", augroup_highlight, function() vim.highlight.on_yank { timeout = 40 } end, buffer }
     end
 end
 
@@ -88,7 +89,7 @@ local function init()
 
     null_ls.setup({
         sources = {
-            null_ls.builtins.formatting.prettier.with{
+            null_ls.builtins.formatting.prettier.with {
                 extra_filetypes = { "svelte" }
             },
         },
