@@ -241,6 +241,7 @@ in
 
       # language servers
       gopls
+      haskell-language-server
       jsonnet-language-server
       lua-language-server
       nil
