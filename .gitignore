@@ -11,3 +11,4 @@ tmux/**
 bat/**
 kitty/**
 git/**
+direnv/**

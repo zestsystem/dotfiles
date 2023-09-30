@@ -58,6 +58,11 @@ in
 
   programs.bottom.enable = true;
 
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
+
   programs.go = {
     enable = true;
     goPath = "Development/language/go";
