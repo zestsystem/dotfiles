@@ -183,6 +183,7 @@ in
       vimPlugins.null-ls-nvim
       vimPlugins.rust-tools-nvim
       vimPlugins.purescript-vim
+      vimPlugins.haskell-tools-nvim
 
       # telescope
       vimPlugins.plenary-nvim
