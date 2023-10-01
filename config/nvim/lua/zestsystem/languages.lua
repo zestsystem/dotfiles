@@ -1,5 +1,6 @@
 local copilot = require 'copilot'
 local lspconfig = require 'lspconfig'
+local ht = require 'haskell-tools'
 local rust_tools = require 'rust-tools'
 local treesitter = require 'nvim-treesitter.configs'
 local treesitter_context = require 'treesitter-context'
@@ -94,6 +95,36 @@ local function init()
             },
         },
     })
+
+    ht.setup {
+        tools = {
+            hover = {
+                disable = true
+            }
+        },
+        hls = {
+            filetypes = { 'haskell', 'lhaskell', 'cabal' },
+            on_attach = function(client, bufnr)
+                local def_opts = { noremap = true, silent = true, }
+                on_attach(client, bufnr)
+                local opts = vim.tbl_extend('keep', def_opts, { buffer = bufnr, })
+                -- haskell-language-server relies heavily on codeLenses,
+                -- so auto-refresh (see advanced configuration) is enabled by default
+                vim.keymap.set('n', '<leader>ca', vim.lsp.codelens.run, opts)
+                -- Hoogle search for the type signature of the definition under the cursor
+                vim.keymap.set('n', '<leader>hs', ht.hoogle.hoogle_signature, opts)
+                -- Evaluate all code snippets
+                vim.keymap.set('n', '<space>ea', ht.lsp.buf_eval_all, opts)
+                -- Toggle a GHCi repl for the current package
+                vim.keymap.set('n', '<leader>rr', ht.repl.toggle, opts)
+                -- Toggle a GHCi repl for the current buffer
+                vim.keymap.set('n', '<leader>rf', function()
+                    ht.repl.toggle(vim.api.nvim_buf_get_name(0))
+                end, def_opts)
+                vim.keymap.set('n', '<leader>rq', ht.repl.quit, opts)
+            end,
+        },
+    }
 
 
     -- Rust specific setup
