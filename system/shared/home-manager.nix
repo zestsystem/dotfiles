@@ -265,6 +265,7 @@ in
       nixpkgs-fmt
       python310Packages.black
       rustfmt
+      terraform
 
       # tools
       cargo

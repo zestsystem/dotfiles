@@ -93,6 +93,9 @@ local function init()
             null_ls.builtins.formatting.prettier.with {
                 extra_filetypes = { "svelte" }
             },
+            null_ls.builtins.formatting.terraform_fmt.with({
+                extra_filetypes = { "hcl" },
+            }),
         },
     })
 
