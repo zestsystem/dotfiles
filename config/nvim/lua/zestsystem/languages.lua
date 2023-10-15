@@ -96,6 +96,7 @@ local function init()
             null_ls.builtins.formatting.terraform_fmt.with({
                 extra_filetypes = { "hcl" },
             }),
+            null_ls.builtins.formatting.alejandra
         },
     })
 
@@ -205,11 +206,6 @@ local function init()
             }
         },
         nil_ls = {
-            settings = {
-                ['nil'] = {
-                    formatting = { command = { "nixpkgs-fmt" } },
-                },
-            },
         },
         purescriptls = {
             settings = {

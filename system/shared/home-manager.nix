@@ -263,7 +263,7 @@ in
       # formatters
       gofumpt
       golines
-      nixpkgs-fmt
+      alejandra
       python310Packages.black
       rustfmt
       terraform
