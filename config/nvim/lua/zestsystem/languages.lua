@@ -90,6 +90,7 @@ local function init()
 
     null_ls.setup({
         sources = {
+            null_ls.builtins.formatting.treefmt,
             null_ls.builtins.formatting.prettier.with {
                 extra_filetypes = { "svelte" }
             },
