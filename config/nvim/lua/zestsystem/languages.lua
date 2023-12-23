@@ -232,6 +232,7 @@ local function init()
                 },
             },
         },
+        ocamllsp = {},
         svelte = {},
         tailwindcss = {},
         terraformls = {},
