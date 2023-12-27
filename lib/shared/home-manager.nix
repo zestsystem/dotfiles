@@ -298,7 +298,6 @@ in {
     enable = true;
     enableAutosuggestions = true;
     enableCompletion = true;
-    enableSyntaxHighlighting = true;
 
     oh-my-zsh = {
       enable = true;
@@ -310,6 +309,10 @@ in {
       cat = "bat";
       s = ''doppler run --config "nixos" --project "$(whoami)"'';
       wt = "git worktree";
+    };
+
+    syntaxHighlighting = {
+      enable = true;
     };
   };
 }
