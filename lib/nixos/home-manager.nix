@@ -14,7 +14,6 @@ in {
   # home
   #---------------------------------------------------------------------
 
-  home.file.".config/k9s/skin.yml".source = ../../config/k9s/skin.yml;
   home.packages = pkgs.lib.optionals desktop [pkgs.jetbrains.datagrip];
 
   #---------------------------------------------------------------------

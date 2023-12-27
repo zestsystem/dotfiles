@@ -1,5 +1,5 @@
 darwin profile command:
-    darwin-rebuild {{ command }} --flake ".#{{profile}}-darwin"
+    darwin-rebuild {{ command }} --flake ".#{{profile}}"
     rm -rf ./result
 bootstrap destination username publickey:
     ssh \

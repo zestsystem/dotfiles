@@ -18,7 +18,6 @@ in {
           home-manager.useUserPackages = true;
           home-manager.users.${username} = {pkgs, ...}: {
             imports = [(home-manager {inherit git;})];
-            home.file."Library/Application Support/k9s/skin.yml".source = ../config/k9s/skin.yml;
           };
         }
       ];

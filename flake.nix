@@ -17,7 +17,7 @@
     git = {
       extraConfig.github.user = username;
       userEmail = "mk337337@gmail.com";
-      username = "Mike Yim";
+      username = "mikeyim";
     };
     username = "zestsystem";
   in

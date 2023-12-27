@@ -1,10 +1,4 @@
-{inputs}: {pkgs, ...}: let
-  catppuccin-bat = pkgs.fetchFromGitHub {
-    owner = "catppuccin";
-    repo = "bat";
-    rev = "ba4d16880d63e656acced2b7d4e034e4a93f74b1";
-    sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
-  };
+{inputs}: {git}: {pkgs, ...}: let
   isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
@@ -12,15 +6,9 @@
     src = pkgs.fetchFromGitHub {
       owner = "NoahTheDuke";
       repo = "vim-just";
-      rev = "927b41825b9cd07a40fc15b4c68635c4b36fa923";
-      sha256 = "sha256-BmxYWUVBzTowH68eWNrQKV1fNN9d1hRuCnXqbEagRoY=";
+      rev = "3451e22daade268f99b1cfeb0d9fe39f4ddc06d5";
+      sha256 = "sha256-2pzdtMGdmCTprkPslGdlEezdQ6dTFrhqvz5Sc8DN3Ts=";
     };
-  };
-  zsh-z = pkgs.fetchFromGitHub {
-    owner = "agkozak";
-    repo = "zsh-z";
-    rev = "da8dee3ccaf882d1bf653c34850041025616ceb5";
-    sha256 = "sha256-MHb9Q7mwgWAs99vom6a2aODB40I9JTBaJnbvTYbMwiA=";
   };
 in {
   #---------------------------------------------------------------------
@@ -28,12 +16,9 @@ in {
   #---------------------------------------------------------------------
 
   home.packages = with pkgs; [
-    awscli2
     doppler
     gh
     jq
-    k9s
-    kubectl
     ripgrep
     tmux-sessionizer
     z-lua
@@ -60,9 +45,17 @@ in {
     enable = true;
     config = {theme = "catppuccin";};
     themes = {
-      catppuccin =
-        builtins.readFile
-        (catppuccin-bat + "/Catppuccin-macchiato.tmTheme");
+      catppuccin = {
+        src =
+          pkgs.fetchFromGitHub
+          {
+            owner = "catppuccin";
+            repo = "bat";
+            rev = "ba4d16880d63e656acced2b7d4e034e4a93f74b1";
+            sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
+          };
+        file = "Catppuccin-macchiato.tmTheme";
+      };
     };
   };
 
@@ -135,50 +128,52 @@ in {
   programs.kitty = {
     enable = true;
     settings = {
-      foreground = "#CAD3F5";
-      background = "#0F0015";
-      selection_foreground = "#24273A";
-      selection_background = "#F4DBD6";
+      active_border_color = "#B7BDF8";
+      active_tab_background = "#C6A0F6";
+      active_tab_foreground = "#181926";
+      allow_remote_control = "yes";
+      background = "#24273A";
+      background_opacity = "0.9";
+      bell_border_color = "#EED49F";
+      color0 = "#494D64";
+      color1 = "#ED8796";
+      color10 = "#A6DA95";
+      color11 = "#EED49F";
+      color12 = "#8AADF4";
+      color13 = "#F5BDE6";
+      color14 = "#8BD5CA";
+      color15 = "#A5ADCB";
+      color2 = "#A6DA95";
+      color3 = "#EED49F";
+      color4 = "#8AADF4";
+      color5 = "#F5BDE6";
+      color6 = "#8BD5CA";
+      color7 = "#B8C0E0";
+      color8 = "#5B6078";
+      color9 = "#ED8796";
       cursor = "#F4DBD6";
       cursor_text_color = "#24273A";
-      url_color = "#F4DBD6";
-      active_border_color = "#B7BDF8";
-      inactive_border_color = "#6E738D";
-      bell_border_color = "#EED49F";
-      wayland_titlebar_color = "system";
-      macos_titlebar_color = "system";
-      active_tab_foreground = "#181926";
-      active_tab_background = "#C6A0F6";
-      inactive_tab_foreground = "#CAD3F5";
-      inactive_tab_background = "#1E2030";
-      tab_bar_background = "#181926";
-      mark1_foreground = "#24273A";
-      mark1_background = "#B7BDF8";
-      mark2_foreground = "#24273A";
-      mark2_background = "#C6A0F6";
-      mark3_foreground = "#24273A";
-      mark3_background = "#7DC4E4";
-      color0 = "#494D64";
-      color8 = "#5B6078";
-      color1 = "#ED8796";
-      color9 = "#ED8796";
-      color2 = "#A6DA95";
-      color10 = "#A6DA95";
-      color3 = "#EED49F";
-      color11 = "#EED49F";
-      color4 = "#8AADF4";
-      color12 = "#8AADF4";
-      color5 = "#F5BDE6";
-      color13 = "#F5BDE6";
-      color6 = "#8BD5CA";
-      color14 = "#8BD5CA";
-      color7 = "#B8C0E0";
-      color15 = "#A5ADCB";
-      background_opacity = "0.9";
-      font_size = "15";
-      allow_remote_control = "yes";
-      listen_on = "unix:/tmp/kitty";
       enabled_layouts = "splits";
+      foreground = "#CAD3F5";
+      hide_window_decorations = "titlebar-and-corners";
+      inactive_border_color = "#6E738D";
+      inactive_tab_background = "#1E2030";
+      inactive_tab_foreground = "#CAD3F5";
+      listen_on = "unix:/tmp/kitty";
+      macos_option_as_alt = "yes";
+      macos_quit_when_last_window_closed = "yes";
+      macos_titlebar_color = "background";
+      mark1_background = "#B7BDF8";
+      mark1_foreground = "#24273A";
+      mark2_background = "#C6A0F6";
+      mark2_foreground = "#24273A";
+      mark3_background = "#7DC4E4";
+      mark3_foreground = "#24273A";
+      selection_background = "#F4DBD6";
+      selection_foreground = "#24273A";
+      tab_bar_background = "#181926";
+      url_color = "#F4DBD6";
+      wayland_titlebar_color = "system";
     };
     theme = "Catppuccin-Macchiato";
   };
@@ -218,7 +213,6 @@ in {
       vimPlugins.nvim-colorizer-lua
       vimPlugins.nvim-notify
       vimPlugins.nvim-treesitter-context
-      vimPlugins.nvim-ts-rainbow2
       vimPlugins.vim-fugitive
       vimPlugins.harpoon
 
@@ -317,12 +311,5 @@ in {
       s = ''doppler run --config "nixos" --project "$(whoami)"'';
       wt = "git worktree";
     };
-
-    plugins = [
-      {
-        name = "zsh-z";
-        src = zsh-z;
-      }
-    ];
   };
 }
