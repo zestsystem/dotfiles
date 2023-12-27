@@ -5,7 +5,7 @@
     darwin.inputs.nixpkgs.follows = "nixpkgs";
     darwin.url = "github:lnl7/nix-darwin";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
-    home-manager.url = "github:nix-community/home-manager/release-23.05";
+    home-manager.url = "github:nix-community/home-manager";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
@@ -17,9 +17,9 @@
     git = {
       extraConfig.github.user = username;
       userEmail = "mk337337@gmail.com";
-      username = "mikeyim";
+      userName = "Mike Yim";
     };
-    username = "zestsystem";
+    username = "mikeyim";
   in
     flake-parts.lib.mkFlake {inherit inputs;} {
       flake = {
