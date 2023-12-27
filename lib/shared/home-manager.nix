@@ -27,6 +27,17 @@ in {
   # home
   #---------------------------------------------------------------------
 
+  home.packages = with pkgs; [
+    awscli2
+    doppler
+    gh
+    jq
+    k9s
+    kubectl
+    ripgrep
+    z-lua
+  ];
+
   home.sessionVariables = {
     CHARM_HOST = "localhost";
     EDITOR = "nvim";
@@ -60,11 +71,6 @@ in {
     enable = true;
     enableZshIntegration = true;
     nix-direnv.enable = true;
-  };
-
-  programs.go = {
-    enable = true;
-    goPath = "Development/language/go";
   };
 
   programs.git = {
@@ -107,8 +113,6 @@ in {
     };
 
     enable = true;
-    userEmail = "mikeyim@utc.gg";
-    userName = "zestsystem";
 
     extraConfig = {
       color.ui = true;
@@ -120,6 +124,11 @@ in {
       push.autoSetupRemote = true;
       rebase.autoStash = true;
     };
+  };
+
+  programs.go = {
+    enable = true;
+    goPath = "Development/language/go";
   };
 
   programs.kitty = {
@@ -323,11 +332,5 @@ in {
         src = zsh-z;
       }
     ];
-
-    initExtra = ''
-      if [ "$TMUX" = "" ]; then tmux a || tmux new; fi
-
-      bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
-    '';
   };
 }
