@@ -38,7 +38,7 @@ in {
     PULUMI_SKIP_UPDATE_CHECK = "true";
   };
 
-  home.stateVersion = "23.05";
+  home.stateVersion = "23.11";
 
   #---------------------------------------------------------------------
   # programs
@@ -48,9 +48,14 @@ in {
     enable = true;
     config = {theme = "catppuccin";};
     themes = {
-      catppuccin =
-        builtins.readFile
-        (catppuccin-bat + "/Catppuccin-macchiato.tmTheme");
+      catppuccin = {
+        src = pkgs.fetchFromGitHub {
+          owner = "catppuccin";
+          repo = "bat";
+          rev = "ba4d16880d63e656acced2b7d4e034e4a93f74b1";
+          sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
+        };
+      };
     };
   };
 
@@ -208,7 +213,7 @@ in {
       vimPlugins.nvim-colorizer-lua
       vimPlugins.nvim-notify
       vimPlugins.nvim-treesitter-context
-      vimPlugins.nvim-ts-rainbow2
+      vimPlugins.rainbow-delimiters-nvim
       vimPlugins.vim-fugitive
       vimPlugins.harpoon
 
@@ -233,7 +238,6 @@ in {
     '';
     extraPackages = with pkgs; [
       # languages
-      jsonnet
       nodejs
       python310Full
       rustc
@@ -241,7 +245,6 @@ in {
       # language servers
       gopls
       haskell-language-server
-      jsonnet-language-server
       lua-language-server
       nil
       nodePackages."bash-language-server"

@@ -100,6 +100,7 @@ local function init()
         },
     })
 
+    --[[
     ht.setup {
         tools = {
             hover = {
@@ -129,6 +130,7 @@ local function init()
             end,
         },
     }
+    --]]
 
 
     -- Rust specific setup
@@ -186,7 +188,6 @@ local function init()
         hls = {},
         html = {},
         jsonls = {},
-        jsonnet_ls = {},
         lua_ls = {
             settings = {
                 Lua = {
@@ -269,7 +270,6 @@ local function init()
     treesitter.setup {
         highlight = { enable = true },
         indent = { enable = true },
-        rainbow = { enable = true },
     }
 
     treesitter_context.setup()

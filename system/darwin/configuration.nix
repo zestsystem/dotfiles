@@ -3,8 +3,6 @@
   tmux-sessionizer = import ../shared/tmux-sessionizer.nix {inherit pkgs;};
 in {
   nix = {
-    package = pkgs.nixUnstable;
-
     settings = {
       auto-optimise-store = true;
       builders-use-substitutes = true;
