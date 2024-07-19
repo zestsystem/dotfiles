@@ -251,7 +251,6 @@ in {
       nodePackages."diagnostic-languageserver"
       nodePackages."dockerfile-language-server-nodejs"
       nodePackages."purescript-language-server"
-      nodePackages."pyright"
       nodePackages."svelte-language-server"
       nodePackages."typescript"
       nodePackages."typescript-language-server"
@@ -259,6 +258,7 @@ in {
       nodePackages."@tailwindcss/language-server"
       nodePackages."yaml-language-server"
       ocamlPackages.lsp
+      pyright
       rust-analyzer
       terraform-ls
 
@@ -316,7 +316,6 @@ in {
 
     shellAliases = {
       cat = "bat";
-      s = ''doppler run --config "nixos" --project "$(whoami)"'';
       wt = "git worktree";
     };
 
