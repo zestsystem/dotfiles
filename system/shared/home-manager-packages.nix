@@ -7,4 +7,5 @@ with pkgs; [
   just
   nurl
   ripgrep
+  nodejs_20
 ]
