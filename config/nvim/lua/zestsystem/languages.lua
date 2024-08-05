@@ -159,6 +159,8 @@ local function init()
     local language_servers = {
         bashls = {},
         cssls = {},
+        clangd = {},
+        cmake = {},
         diagnosticls = {
             filetypes = { "python" },
             init_options = {

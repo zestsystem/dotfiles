@@ -248,6 +248,7 @@ in {
       lua-language-server
       nil
       nodePackages."bash-language-server"
+      nodePackages."coc-clangd"
       nodePackages."diagnostic-languageserver"
       nodePackages."dockerfile-language-server-nodejs"
       nodePackages."purescript-language-server"
@@ -272,6 +273,7 @@ in {
 
       # tools
       cargo
+      clang-tools
       gcc
       ghc
       yarn
