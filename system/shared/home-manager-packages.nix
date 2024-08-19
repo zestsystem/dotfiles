@@ -8,4 +8,5 @@ with pkgs; [
   nurl
   ripgrep
   nodejs_20
+  dbeaver-bin
 ]
