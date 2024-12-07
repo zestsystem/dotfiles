@@ -6,30 +6,30 @@
     darwin.url = "github:lnl7/nix-darwin";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager";
+    mac-app-util.url = "github:hraban/mac-app-util";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = inputs @ { flake-parts, ... }:
-    let
-      systems = import ./system { inherit inputs; };
-    in
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      perSystem =
-        { config
-        , self'
-        , inputs'
-        , pkgs
-        , system
-        , ...
-        }: {
-          packages = {
-            zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
-              name = "Zestsystem";
-              src = ./config/nvim;
-            };
+  outputs = inputs @ {flake-parts, ...}: let
+    systems = import ./system {inherit inputs;};
+  in
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
+      perSystem = {
+        config,
+        self',
+        inputs',
+        pkgs,
+        system,
+        ...
+      }: {
+        packages = {
+          zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
+            name = "Zestsystem";
+            src = ./config/nvim;
           };
         };
+      };
 
       flake = {
         darwinConfigurations = {
