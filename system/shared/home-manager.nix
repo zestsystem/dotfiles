@@ -112,7 +112,7 @@ in {
     };
 
     enable = true;
-    userEmail = "mikeyim@utc.gg";
+    userEmail = "mk337337@gmail.com";
     userName = "zestsystem";
 
     extraConfig = {
