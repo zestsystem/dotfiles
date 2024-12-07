@@ -286,6 +286,11 @@ in {
       set-option -a terminal-overrides ",*256col*:RGB"
 
       bind-key -r f run-shell "tmux neww tmux-sessionizer"
+
+      # Change prefix from 'Ctrl+B' to 'Ctrl+A'
+      unbind C-b
+      set-option -g prefix C-a
+      bind-key C-a send-prefix
     '';
     plugins = with pkgs; [
       customTmux.catppuccin
