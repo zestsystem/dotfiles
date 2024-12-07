@@ -4,7 +4,7 @@
 in {
   nix = {
     settings = {
-      auto-optimise-store = true;
+      auto-optimise-store = false;
       builders-use-substitutes = true;
       experimental-features = ["nix-command" "flakes"];
       substituters = [
