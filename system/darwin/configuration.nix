@@ -20,6 +20,8 @@ in {
 
   nixpkgs = {
     config.allowUnfree = true;
+    config.allowUnsupportedSystem = true;
+    config.allowBroken = true;
     overlays = [shared-overlays];
   };
 
