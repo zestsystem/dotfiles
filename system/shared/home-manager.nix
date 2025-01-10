@@ -373,7 +373,7 @@ in {
     extraPackages = with pkgs; [
       # languages
       nodejs
-      python310Full
+      python3
       rustc
 
       # language servers
@@ -401,7 +401,7 @@ in {
       gofumpt
       golines
       alejandra
-      python310Packages.black
+      python3Packages.black
       rustfmt
       terraform
 
