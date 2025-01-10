@@ -67,6 +67,7 @@ in {
     nix-direnv.enable = true;
   };
 
+ /*
   programs.firefox = {
     enable = true;
     profiles = {
@@ -200,6 +201,7 @@ in {
       };
     };
   };
+  */
 
   programs.go = {
     enable = true;
