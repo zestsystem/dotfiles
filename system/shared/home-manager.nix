@@ -6,6 +6,7 @@
     sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
   };
   isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
+  system = pkgs.system;
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
     nativeBuildInputs = with pkgs; [pkg-config readline];
@@ -67,7 +68,7 @@ in {
     nix-direnv.enable = true;
   };
 
- /*
+  /*
   programs.firefox = {
     enable = true;
     profiles = {
@@ -314,107 +315,7 @@ in {
     theme = "Catppuccin-Macchiato";
   };
 
-  programs.neovim = {
-    enable = true;
-    viAlias = true;
-    vimAlias = true;
-    vimdiffAlias = true;
-
-    plugins = with pkgs; [
-      # languages
-      vim-just
-      vimPlugins.nvim-lspconfig
-      vimPlugins.nvim-treesitter.withAllGrammars
-      vimPlugins.null-ls-nvim
-      vimPlugins.rust-tools-nvim
-      vimPlugins.purescript-vim
-      vimPlugins.haskell-tools-nvim
-
-      # telescope
-      vimPlugins.plenary-nvim
-      vimPlugins.popup-nvim
-      vimPlugins.telescope-nvim
-
-      # theme
-      vimPlugins.rose-pine
-
-      # extras
-      vimPlugins.ChatGPT-nvim
-      vimPlugins.copilot-lua
-      vimPlugins.gitsigns-nvim
-      vimPlugins.lualine-nvim
-      vimPlugins.nerdcommenter
-      vimPlugins.noice-nvim
-      vimPlugins.nui-nvim
-      vimPlugins.nvim-colorizer-lua
-      vimPlugins.nvim-notify
-      vimPlugins.nvim-treesitter-context
-      vimPlugins.rainbow-delimiters-nvim
-      vimPlugins.vim-fugitive
-      vimPlugins.harpoon
-
-      vimPlugins.luasnip
-      # autocomplete
-      vimPlugins.nvim-cmp
-      vimPlugins.cmp-nvim-lsp
-      vimPlugins.cmp-buffer
-      vimPlugins.cmp-path
-      vimPlugins.friendly-snippets
-      vimPlugins.cmp_luasnip
-      #vimPlugins.nvim-web-devicons # https://github.com/intel/intel-one-mono/issues/9
-
-      # configuration
-      inputs.self.packages.${pkgs.system}.zestsystem-nvim
-    ];
-
-    extraConfig = ''
-      lua << EOF
-        require 'zestsystem'.init()
-      EOF
-    '';
-    extraPackages = with pkgs; [
-      # languages
-      nodejs
-      python3
-      rustc
-
-      # language servers
-      gopls
-      haskell-language-server
-      lua-language-server
-      nil
-      nodePackages."bash-language-server"
-      nodePackages."coc-clangd"
-      nodePackages."diagnostic-languageserver"
-      nodePackages."dockerfile-language-server-nodejs"
-      nodePackages."purescript-language-server"
-      nodePackages."svelte-language-server"
-      nodePackages."typescript"
-      nodePackages."typescript-language-server"
-      nodePackages."vscode-langservers-extracted"
-      nodePackages."@tailwindcss/language-server"
-      nodePackages."yaml-language-server"
-      ocamlPackages.lsp
-      pyright
-      rust-analyzer
-      terraform-ls
-
-      # formatters
-      gofumpt
-      golines
-      alejandra
-      python3Packages.black
-      rustfmt
-      terraform
-
-      # tools
-      cargo
-      clang-tools
-      gcc
-      ghc
-      yarn
-    ];
-  };
+  programs.neovim = inputs.zestsystem-nvim.lib.mkHomeManager {inherit system;};
 
   programs.tmux = {
     enable = true;
