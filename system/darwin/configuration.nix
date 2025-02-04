@@ -25,7 +25,7 @@ in {
     overlays = [shared-overlays];
   };
 
-  environment.systemPackages = [tmux-sessionizer];
+  environment.systemPackages = [tmux-sessionizer pkgs.nixfmt-rfc-style];
 
   programs = {
     zsh.enable = true;
