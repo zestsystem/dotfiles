@@ -1,6 +1,5 @@
-{pkgs}:
-pkgs.writeShellScriptBin "tmux-sessionizer"
-''
+{ pkgs }:
+pkgs.writeShellScriptBin "tmux-sessionizer" ''
     #!/usr/bin/env bash
 
   if [[ $# -eq 1 ]]; then

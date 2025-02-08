@@ -1,3 +1,4 @@
-{ inputs }: {
+{ inputs }:
+{
   mkDarwin = import ./darwin { inherit inputs; };
 }

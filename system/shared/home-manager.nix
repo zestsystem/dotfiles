@@ -1,4 +1,6 @@
-{inputs}: {pkgs, ...}: let
+{ inputs }:
+{ pkgs, ... }:
+let
   catppuccin-bat = pkgs.fetchFromGitHub {
     owner = "catppuccin";
     repo = "bat";
@@ -9,7 +11,10 @@
   system = pkgs.system;
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
-    nativeBuildInputs = with pkgs; [pkg-config readline];
+    nativeBuildInputs = with pkgs; [
+      pkg-config
+      readline
+    ];
     src = pkgs.fetchFromGitHub {
       owner = "NoahTheDuke";
       repo = "vim-just";
@@ -23,7 +28,8 @@
     rev = "da8dee3ccaf882d1bf653c34850041025616ceb5";
     sha256 = "sha256-MHb9Q7mwgWAs99vom6a2aODB40I9JTBaJnbvTYbMwiA=";
   };
-in {
+in
+{
   #---------------------------------------------------------------------
   # home
   #---------------------------------------------------------------------
@@ -47,7 +53,9 @@ in {
 
   programs.bat = {
     enable = true;
-    config = {theme = "catppuccin";};
+    config = {
+      theme = "catppuccin";
+    };
     themes = {
       catppuccin = {
         src = pkgs.fetchFromGitHub {
@@ -69,139 +77,139 @@ in {
   };
 
   /*
-  programs.firefox = {
-    enable = true;
-    profiles = {
-      default = {
-        id = 0;
-        name = "default";
-        isDefault = true;
-        settings = {
-          "browser.startup.homepage" = "https://searx.aicampground.com";
-          "browser.search.defaultenginename" = "Searx";
-          "browser.search.order.1" = "Searx";
-        };
-        search = {
-          force = true;
-          default = "Searx";
-          order = ["Searx" "Google"];
-          engines = {
-            "Nix Packages" = {
-              urls = [
+    programs.firefox = {
+      enable = true;
+      profiles = {
+        default = {
+          id = 0;
+          name = "default";
+          isDefault = true;
+          settings = {
+            "browser.startup.homepage" = "https://searx.aicampground.com";
+            "browser.search.defaultenginename" = "Searx";
+            "browser.search.order.1" = "Searx";
+          };
+          search = {
+            force = true;
+            default = "Searx";
+            order = ["Searx" "Google"];
+            engines = {
+              "Nix Packages" = {
+                urls = [
+                  {
+                    template = "https://search.nixos.org/packages";
+                    params = [
+                      {
+                        name = "type";
+                        value = "packages";
+                      }
+                      {
+                        name = "query";
+                        value = "{searchTerms}";
+                      }
+                    ];
+                  }
+                ];
+                icon = "''${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
+                definedAliases = ["@np"];
+              };
+              "NixOS Wiki" = {
+                urls = [{template = "https://nixos.wiki/index.php?search={searchTerms}";}];
+                iconUpdateURL = "https://nixos.wiki/favicon.png";
+                updateInterval = 24 * 60 * 60 * 1000; # every day
+                definedAliases = ["@nw"];
+              };
+              "Searx" = {
+                urls = [{template = "https://searx.aicampground.com/?q={searchTerms}";}];
+                iconUpdateURL = "https://nixos.wiki/favicon.png";
+                updateInterval = 24 * 60 * 60 * 1000; # every day
+                definedAliases = ["@searx"];
+              };
+              "Bing".metaData.hidden = true;
+              "Google".metaData.alias = "@g"; # builtin engines only support specifying one additional alias
+            };
+          };
+          bookmarks = [
+            {
+              name = "UTC";
+              toolbar = true;
+              bookmarks = [
                 {
-                  template = "https://search.nixos.org/packages";
-                  params = [
-                    {
-                      name = "type";
-                      value = "packages";
-                    }
-                    {
-                      name = "query";
-                      value = "{searchTerms}";
-                    }
-                  ];
+                  name = "AWS Dashboard";
+                  url = "https://us-west-2.console.aws.amazon.com/console/home?region=us-west-2";
+                }
+                {
+                  name = "Baselime Console";
+                  url = "https://console.baselime.io/utc/prod/default/home";
+                }
+                {
+                  name = "Cloudflare Dashboard";
+                  url = "https://dash.cloudflare.com/f7539e9c233bad18f447ee28011bacc8";
+                }
+                {
+                  name = "Doppler Workplace";
+                  url = "https://dashboard.doppler.com/workplace/01b054739b7daf4fb835/projects";
+                }
+                {
+                  name = "Redpanda Dashboard";
+                  url = "https://cloud.redpanda.com/clusters";
+                }
+                {
+                  name = "Stripe Dashboard";
+                  url = "https://dashboard.stripe.com/dashboard";
+                }
+                {
+                  name = "Apple Developer";
+                  url = "https://developer.apple.com/account";
+                }
+                {
+                  name = "Google Cloud Console";
+                  url = "https://console.cloud.google.com/welcome?authuser=1&inv=1&invt=AbjgdQ&project=utc-app-328309";
+                }
+                {
+                  name = "Google Play Console";
+                  url = "https://play.google.com/console/u/1/developers/6440705807370764741/app-list";
+                }
+                {
+                  name = "Banking - Mercury";
+                  url = "https://app.mercury.com/dashboard";
+                }
+                {
+                  name = "Legal - Delawareinc";
+                  url = "https://mcd.delawareinc.com/home";
                 }
               ];
-              icon = "''${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
-              definedAliases = ["@np"];
-            };
-            "NixOS Wiki" = {
-              urls = [{template = "https://nixos.wiki/index.php?search={searchTerms}";}];
-              iconUpdateURL = "https://nixos.wiki/favicon.png";
-              updateInterval = 24 * 60 * 60 * 1000; # every day
-              definedAliases = ["@nw"];
-            };
-            "Searx" = {
-              urls = [{template = "https://searx.aicampground.com/?q={searchTerms}";}];
-              iconUpdateURL = "https://nixos.wiki/favicon.png";
-              updateInterval = 24 * 60 * 60 * 1000; # every day
-              definedAliases = ["@searx"];
-            };
-            "Bing".metaData.hidden = true;
-            "Google".metaData.alias = "@g"; # builtin engines only support specifying one additional alias
-          };
+            }
+            {
+              name = "Github";
+              url = "https://github.com";
+            }
+            {
+              name = "ChatGPT";
+              url = "https://chatgpt.com";
+            }
+            {
+              name = "Fun";
+              toolbar = true;
+              bookmarks = [
+                {
+                  name = "YouTube";
+                  url = "https://youtube.com";
+                }
+                {
+                  name = "Anime";
+                  url = "https://hianime.to/";
+                }
+                {
+                  name = "Sports Surge - MMA";
+                  url = "https://v3.sportsurge.to/mmastreams9";
+                }
+              ];
+            }
+          ];
         };
-        bookmarks = [
-          {
-            name = "UTC";
-            toolbar = true;
-            bookmarks = [
-              {
-                name = "AWS Dashboard";
-                url = "https://us-west-2.console.aws.amazon.com/console/home?region=us-west-2";
-              }
-              {
-                name = "Baselime Console";
-                url = "https://console.baselime.io/utc/prod/default/home";
-              }
-              {
-                name = "Cloudflare Dashboard";
-                url = "https://dash.cloudflare.com/f7539e9c233bad18f447ee28011bacc8";
-              }
-              {
-                name = "Doppler Workplace";
-                url = "https://dashboard.doppler.com/workplace/01b054739b7daf4fb835/projects";
-              }
-              {
-                name = "Redpanda Dashboard";
-                url = "https://cloud.redpanda.com/clusters";
-              }
-              {
-                name = "Stripe Dashboard";
-                url = "https://dashboard.stripe.com/dashboard";
-              }
-              {
-                name = "Apple Developer";
-                url = "https://developer.apple.com/account";
-              }
-              {
-                name = "Google Cloud Console";
-                url = "https://console.cloud.google.com/welcome?authuser=1&inv=1&invt=AbjgdQ&project=utc-app-328309";
-              }
-              {
-                name = "Google Play Console";
-                url = "https://play.google.com/console/u/1/developers/6440705807370764741/app-list";
-              }
-              {
-                name = "Banking - Mercury";
-                url = "https://app.mercury.com/dashboard";
-              }
-              {
-                name = "Legal - Delawareinc";
-                url = "https://mcd.delawareinc.com/home";
-              }
-            ];
-          }
-          {
-            name = "Github";
-            url = "https://github.com";
-          }
-          {
-            name = "ChatGPT";
-            url = "https://chatgpt.com";
-          }
-          {
-            name = "Fun";
-            toolbar = true;
-            bookmarks = [
-              {
-                name = "YouTube";
-                url = "https://youtube.com";
-              }
-              {
-                name = "Anime";
-                url = "https://hianime.to/";
-              }
-              {
-                name = "Sports Surge - MMA";
-                url = "https://v3.sportsurge.to/mmastreams9";
-              }
-            ];
-          }
-        ];
       };
     };
-  };
   */
 
   programs.go = {
@@ -315,7 +323,7 @@ in {
     theme = "Catppuccin-Macchiato";
   };
 
-  programs.neovim = inputs.zestsystem-nvim.lib.mkHomeManager {inherit system;};
+  programs.neovim = inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; };
 
   programs.tmux = {
     enable = true;
@@ -340,10 +348,7 @@ in {
       tmuxPlugins.tilish
     ];
     shell = "${pkgs.zsh}/bin/zsh";
-    terminal =
-      if isDarwin
-      then "screen-256color"
-      else "xterm-256color";
+    terminal = if isDarwin then "screen-256color" else "xterm-256color";
   };
 
   programs.zsh = {
@@ -354,7 +359,7 @@ in {
 
     oh-my-zsh = {
       enable = true;
-      plugins = ["git"];
+      plugins = [ "git" ];
       theme = "robbyrussell";
     };
 
