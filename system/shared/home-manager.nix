@@ -379,6 +379,13 @@ in
       if [ "$TMUX" = "" ]; then tmux a || tmux new; fi
 
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
+
+      
+      # Load environment variables from a file; this approach allows me to not
+      # commit secrets like API keys to Git
+      if [ -e ~/.env ]; then
+        . ~/.env
+      fi
     '';
   };
 }
