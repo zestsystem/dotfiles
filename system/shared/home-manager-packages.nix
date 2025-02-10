@@ -11,4 +11,5 @@ with pkgs;
   ripgrep
   nodejs_20
   dbeaver-bin
+  aider-chat
 ]
