@@ -269,11 +269,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1738997554,
-        "narHash": "sha256-6ELhBVaAS2218S8UJUjnOywamzbCAlo8fgspMxVuVRI=",
+        "lastModified": 1739170302,
+        "narHash": "sha256-VYz910IaAAKJlRohvL5A56Jp00dQpQAar0xDvU/eepE=",
         "owner": "zestsystem",
         "repo": "zestsystem.nvim",
-        "rev": "34724176226e6b9d99ff4320137b75444a85fa91",
+        "rev": "745c191b90a3f24cd1b888bdf67fcab3e9498882",
         "type": "github"
       },
       "original": {
