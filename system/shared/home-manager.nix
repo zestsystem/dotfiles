@@ -366,6 +366,10 @@ in
     shellAliases = {
       cat = "bat";
       wt = "git worktree";
+      # aider watch mode
+      gemini = "aider --watch-files --model gemini/gemini-2.0-flash";
+      mini = "aider --watch-files --mini";
+      sonnet = "aider --watch-files --sonnet";
     };
 
     plugins = [
