@@ -16,3 +16,4 @@ bat/**
 kitty/**
 git/**
 direnv/**
+.aider*
