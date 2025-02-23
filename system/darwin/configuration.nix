@@ -22,6 +22,7 @@ in
       trusted-users = [ "@wheel" ];
       warn-dirty = false;
     };
+    enable = true;
   };
 
   nixpkgs = {
@@ -40,7 +41,7 @@ in
     zsh.enable = true;
   };
 
-  services.nix-daemon.enable = true;
+  ids.gids.nixbld = 350;
 
   system.stateVersion = 4;
 
