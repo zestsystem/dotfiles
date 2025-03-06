@@ -14,6 +14,7 @@ inputs.darwin.lib.darwinSystem {
     {
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;
+      home-manager.backupFileExtension = "backup";
       home-manager.users.${username} = import ./home-manager.nix {
         inherit inputs;
       };
