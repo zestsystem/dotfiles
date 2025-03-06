@@ -76,141 +76,142 @@ in
     nix-direnv.enable = true;
   };
 
-  /*
-    programs.firefox = {
-      enable = true;
-      profiles = {
-        default = {
-          id = 0;
-          name = "default";
-          isDefault = true;
-          settings = {
-            "browser.startup.homepage" = "https://searx.aicampground.com";
-            "browser.search.defaultenginename" = "Searx";
-            "browser.search.order.1" = "Searx";
-          };
-          search = {
-            force = true;
-            default = "Searx";
-            order = ["Searx" "Google"];
-            engines = {
-              "Nix Packages" = {
-                urls = [
-                  {
-                    template = "https://search.nixos.org/packages";
-                    params = [
-                      {
-                        name = "type";
-                        value = "packages";
-                      }
-                      {
-                        name = "query";
-                        value = "{searchTerms}";
-                      }
-                    ];
-                  }
-                ];
-                icon = "''${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
-                definedAliases = ["@np"];
-              };
-              "NixOS Wiki" = {
-                urls = [{template = "https://nixos.wiki/index.php?search={searchTerms}";}];
-                iconUpdateURL = "https://nixos.wiki/favicon.png";
-                updateInterval = 24 * 60 * 60 * 1000; # every day
-                definedAliases = ["@nw"];
-              };
-              "Searx" = {
-                urls = [{template = "https://searx.aicampground.com/?q={searchTerms}";}];
-                iconUpdateURL = "https://nixos.wiki/favicon.png";
-                updateInterval = 24 * 60 * 60 * 1000; # every day
-                definedAliases = ["@searx"];
-              };
-              "Bing".metaData.hidden = true;
-              "Google".metaData.alias = "@g"; # builtin engines only support specifying one additional alias
-            };
-          };
-          bookmarks = [
-            {
-              name = "UTC";
-              toolbar = true;
-              bookmarks = [
-                {
-                  name = "AWS Dashboard";
-                  url = "https://us-west-2.console.aws.amazon.com/console/home?region=us-west-2";
-                }
-                {
-                  name = "Baselime Console";
-                  url = "https://console.baselime.io/utc/prod/default/home";
-                }
-                {
-                  name = "Cloudflare Dashboard";
-                  url = "https://dash.cloudflare.com/f7539e9c233bad18f447ee28011bacc8";
-                }
-                {
-                  name = "Doppler Workplace";
-                  url = "https://dashboard.doppler.com/workplace/01b054739b7daf4fb835/projects";
-                }
-                {
-                  name = "Redpanda Dashboard";
-                  url = "https://cloud.redpanda.com/clusters";
-                }
-                {
-                  name = "Stripe Dashboard";
-                  url = "https://dashboard.stripe.com/dashboard";
-                }
-                {
-                  name = "Apple Developer";
-                  url = "https://developer.apple.com/account";
-                }
-                {
-                  name = "Google Cloud Console";
-                  url = "https://console.cloud.google.com/welcome?authuser=1&inv=1&invt=AbjgdQ&project=utc-app-328309";
-                }
-                {
-                  name = "Google Play Console";
-                  url = "https://play.google.com/console/u/1/developers/6440705807370764741/app-list";
-                }
-                {
-                  name = "Banking - Mercury";
-                  url = "https://app.mercury.com/dashboard";
-                }
-                {
-                  name = "Legal - Delawareinc";
-                  url = "https://mcd.delawareinc.com/home";
-                }
-              ];
-            }
-            {
-              name = "Github";
-              url = "https://github.com";
-            }
-            {
-              name = "ChatGPT";
-              url = "https://chatgpt.com";
-            }
-            {
-              name = "Fun";
-              toolbar = true;
-              bookmarks = [
-                {
-                  name = "YouTube";
-                  url = "https://youtube.com";
-                }
-                {
-                  name = "Anime";
-                  url = "https://hianime.to/";
-                }
-                {
-                  name = "Sports Surge - MMA";
-                  url = "https://v3.sportsurge.to/mmastreams9";
-                }
-              ];
-            }
-          ];
+  programs.firefox = {
+    enable = true;
+    profiles = {
+      default = {
+        id = 0;
+        name = "default";
+        isDefault = true;
+        settings = {
+          "browser.startup.homepage" = "https://searx.aicampground.com";
+          "browser.search.defaultenginename" = "Searx";
+          "browser.search.order.1" = "Searx";
         };
+        search = {
+          force = true;
+          default = "Searx";
+          order = [
+            "Searx"
+            "Google"
+          ];
+          engines = {
+            "Nix Packages" = {
+              urls = [
+                {
+                  template = "https://search.nixos.org/packages";
+                  params = [
+                    {
+                      name = "type";
+                      value = "packages";
+                    }
+                    {
+                      name = "query";
+                      value = "{searchTerms}";
+                    }
+                  ];
+                }
+              ];
+              icon = "''${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
+              definedAliases = [ "@np" ];
+            };
+            "NixOS Wiki" = {
+              urls = [ { template = "https://nixos.wiki/index.php?search={searchTerms}"; } ];
+              iconUpdateURL = "https://nixos.wiki/favicon.png";
+              updateInterval = 24 * 60 * 60 * 1000; # every day
+              definedAliases = [ "@nw" ];
+            };
+            "Searx" = {
+              urls = [ { template = "https://searx.aicampground.com/?q={searchTerms}"; } ];
+              iconUpdateURL = "https://nixos.wiki/favicon.png";
+              updateInterval = 24 * 60 * 60 * 1000; # every day
+              definedAliases = [ "@searx" ];
+            };
+            "Bing".metaData.hidden = true;
+            "Google".metaData.alias = "@g"; # builtin engines only support specifying one additional alias
+          };
+        };
+        bookmarks = [
+          {
+            name = "UTC";
+            toolbar = true;
+            bookmarks = [
+              {
+                name = "AWS Dashboard";
+                url = "https://us-west-2.console.aws.amazon.com/console/home?region=us-west-2";
+              }
+              {
+                name = "Baselime Console";
+                url = "https://console.baselime.io/utc/prod/default/home";
+              }
+              {
+                name = "Cloudflare Dashboard";
+                url = "https://dash.cloudflare.com/f7539e9c233bad18f447ee28011bacc8";
+              }
+              {
+                name = "Doppler Workplace";
+                url = "https://dashboard.doppler.com/workplace/01b054739b7daf4fb835/projects";
+              }
+              {
+                name = "Redpanda Dashboard";
+                url = "https://cloud.redpanda.com/clusters";
+              }
+              {
+                name = "Stripe Dashboard";
+                url = "https://dashboard.stripe.com/dashboard";
+              }
+              {
+                name = "Apple Developer";
+                url = "https://developer.apple.com/account";
+              }
+              {
+                name = "Google Cloud Console";
+                url = "https://console.cloud.google.com/welcome?authuser=1&inv=1&invt=AbjgdQ&project=utc-app-328309";
+              }
+              {
+                name = "Google Play Console";
+                url = "https://play.google.com/console/u/1/developers/6440705807370764741/app-list";
+              }
+              {
+                name = "Banking - Mercury";
+                url = "https://app.mercury.com/dashboard";
+              }
+              {
+                name = "Legal - Delawareinc";
+                url = "https://mcd.delawareinc.com/home";
+              }
+            ];
+          }
+          {
+            name = "Github";
+            url = "https://github.com";
+          }
+          {
+            name = "ChatGPT";
+            url = "https://chatgpt.com";
+          }
+          {
+            name = "Fun";
+            toolbar = true;
+            bookmarks = [
+              {
+                name = "YouTube";
+                url = "https://youtube.com";
+              }
+              {
+                name = "Anime";
+                url = "https://hianime.to/";
+              }
+              {
+                name = "Sports Surge - MMA";
+                url = "https://v3.sportsurge.to/mmastreams9";
+              }
+            ];
+          }
+        ];
       };
     };
-  */
+  };
 
   programs.go = {
     enable = true;
@@ -384,7 +385,7 @@ in
 
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
 
-      
+
       # Load environment variables from a file; this approach allows me to not
       # commit secrets like API keys to Git
       if [ -e ~/.env ]; then
