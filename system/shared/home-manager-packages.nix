@@ -12,4 +12,5 @@ with pkgs;
   nodejs_20
   dbeaver-bin
   aider-chat
+  claude-code
 ]
