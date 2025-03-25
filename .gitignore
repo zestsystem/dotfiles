@@ -16,4 +16,5 @@ bat/**
 kitty/**
 git/**
 direnv/**
+planetscale/**
 .aider*
