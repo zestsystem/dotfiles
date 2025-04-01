@@ -231,7 +231,7 @@ in
       cat = "bat";
       wt = "git worktree";
       # aider watch mode
-      gemini = "aider --watch-files --model gemini/gemini-2.0-flash";
+      gemini = "aider --watch-files --model gemini/gemini-2.5-pro";
       mini = "aider --watch-files --mini";
       sonnet = "aider --watch-files --sonnet";
     };
