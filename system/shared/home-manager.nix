@@ -230,10 +230,10 @@ in
     shellAliases = {
       cat = "bat";
       wt = "git worktree";
-      # aider watch mode
-      gemini = "aider --watch-files --model gemini-2.5-pro";
-      mini = "aider --watch-files --mini";
-      sonnet = "aider --watch-files --sonnet";
+
+      # Use 'bunx' to run commands from the bun package manager
+      claude = "bunx @anthropic-ai/claude-code";
+      opencode = "bunx opencode-ai";
     };
 
     plugins = [

@@ -10,5 +10,5 @@ with pkgs;
   nurl
   ripgrep
   nodejs_20
-  claude-code
+  bun
 ]
