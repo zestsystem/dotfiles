@@ -10,5 +10,6 @@ with pkgs;
   nurl
   ripgrep
   nodejs_20
+  mysql84
   bun
 ]
