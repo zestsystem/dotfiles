@@ -138,6 +138,7 @@ in
 
   programs.kitty = {
     enable = true;
+    shellIntegration.mode = "enabled";
     settings = {
       shell = "${pkgs.zsh}/bin/zsh";
       foreground = "#CAD3F5";
@@ -194,6 +195,9 @@ in
     enable = true;
     extraConfig = ''
       set-option -a terminal-overrides ",*256col*:RGB"
+
+      # Override tmux-sensible's default-command to use zsh
+      set-option -g default-command "${pkgs.zsh}/bin/zsh"
 
       bind-key -r f run-shell "tmux neww tmux-sessionizer"
 
