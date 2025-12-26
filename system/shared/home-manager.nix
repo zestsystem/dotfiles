@@ -139,6 +139,7 @@ in
   programs.kitty = {
     enable = true;
     settings = {
+      shell = "${pkgs.zsh}/bin/zsh";
       foreground = "#CAD3F5";
       background = "#0F0015";
       selection_foreground = "#24273A";
