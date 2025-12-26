@@ -3,6 +3,7 @@ with pkgs;
 [
   doppler
   fd
+  ffmpeg
   fzf
   gh
   jq
