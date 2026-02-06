@@ -44,11 +44,6 @@ in
     PULUMI_SKIP_UPDATE_CHECK = "true";
   };
 
-  home.sessionPath = [
-    "$HOME/.local/bin"
-    "$GOPATH/bin"
-  ];
-
   home.stateVersion = "23.11";
 
   #---------------------------------------------------------------------
@@ -252,6 +247,8 @@ in
     ];
 
     initExtra = ''
+      export PATH="$HOME/.local/bin:$GOPATH/bin''${PATH:+:}$PATH"
+
       if [ "$TMUX" = "" ]; then tmux a || tmux new; fi
 
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
