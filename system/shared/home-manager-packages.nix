@@ -1,6 +1,7 @@
 { pkgs, ... }:
 with pkgs;
 [
+  cocoapods
   doppler
   fd
   ffmpeg
@@ -13,4 +14,5 @@ with pkgs;
   nodejs_20
   mysql84
   bun
+  yarn-berry
 ]
