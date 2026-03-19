@@ -190,6 +190,23 @@ in
 
   programs.neovim = inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; };
 
+  programs.ssh = {
+    enable = true;
+    enableDefaultConfig = false;
+    matchBlocks = {
+      "*" = {
+        addKeysToAgent = "yes";
+        serverAliveInterval = 60;
+        serverAliveCountMax = 3;
+      };
+      "github.com" = {
+        hostname = "github.com";
+        user = "git";
+        identityFile = "~/.ssh/id_ed25519";
+      };
+    };
+  };
+
   programs.tmux = {
     enable = true;
     extraConfig = ''
@@ -254,10 +271,10 @@ in
       bindkey -s '^f' 'tmux neww tmux-sessionizer^M'
 
 
-      # Load environment variables from a file; this approach allows me to not
-      # commit secrets like API keys to Git
+      # Load secrets from ~/.env (populated by 'just secrets')
       if [ -e ~/.env ]; then
         . ~/.env
+        unset SSH_PRIVATE_KEY
       fi
     '';
   };
