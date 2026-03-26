@@ -3,7 +3,9 @@
 { system, username }:
 
 let
-  configuration = import ./configuration.nix { inherit username; };
+  configuration = import ./configuration.nix {
+    inherit system username;
+  };
 in
 inputs.darwin.lib.darwinSystem {
   inherit system;
