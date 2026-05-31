@@ -254,6 +254,7 @@ in
 
       # Use 'bunx' to run commands from the bun package manager
       opencode = "bunx opencode-ai";
+      codex = "bunx codex";
     };
 
     plugins = [
