@@ -188,7 +188,21 @@ in
     themeFile = "Catppuccin-Macchiato";
   };
 
-  programs.neovim = inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; };
+  programs.neovim =
+    (inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; })
+    // {
+      extraConfig = ''
+        lua << EOF
+          vim.g.rainbow_delimiters = {
+            strategy = {
+              [""] = require 'rainbow-delimiters.strategy.no-op',
+            },
+          }
+
+          require 'zestsystem'.init()
+        EOF
+      '';
+    };
 
   programs.ssh = {
     enable = true;
