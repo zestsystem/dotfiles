@@ -7,8 +7,8 @@ let
     rev = "ba4d16880d63e656acced2b7d4e034e4a93f74b1";
     sha256 = "sha256-6WVKQErGdaqb++oaXnY3i6/GuH2FhTgK0v4TN4Y0Wbw=";
   };
-  isDarwin = pkgs.system == "aarch64-darwin" || pkgs.system == "x86_64-darwin";
-  system = pkgs.system;
+  system = pkgs.stdenv.hostPlatform.system;
+  isDarwin = system == "aarch64-darwin" || system == "x86_64-darwin";
   vim-just = pkgs.vimUtils.buildVimPlugin {
     name = "vim-just";
     nativeBuildInputs = with pkgs; [
@@ -193,16 +193,16 @@ in
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
-    matchBlocks = {
+    settings = {
       "*" = {
-        addKeysToAgent = "yes";
-        serverAliveInterval = 60;
-        serverAliveCountMax = 3;
+        AddKeysToAgent = "yes";
+        ServerAliveInterval = 60;
+        ServerAliveCountMax = 3;
       };
       "github.com" = {
-        hostname = "github.com";
-        user = "git";
-        identityFile = "~/.ssh/id_ed25519";
+        HostName = "github.com";
+        User = "git";
+        IdentityFile = "~/.ssh/id_ed25519";
       };
     };
   };
@@ -254,7 +254,6 @@ in
 
       # Use 'bunx' to run commands from the bun package manager
       opencode = "bunx opencode-ai";
-      codex = "bunx codex";
     };
 
     plugins = [
@@ -264,7 +263,7 @@ in
       }
     ];
 
-    initExtra = ''
+    initContent = ''
       export PATH="$HOME/.local/bin:$GOPATH/bin''${PATH:+:}$PATH"
 
       if [ "$TMUX" = "" ]; then tmux a || tmux new; fi

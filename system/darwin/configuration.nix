@@ -41,7 +41,7 @@ in
 
   environment.systemPackages = [
     tmux-sessionizer
-    pkgs.nixfmt-rfc-style
+    pkgs.nixfmt
   ];
 
   environment.etc = {
