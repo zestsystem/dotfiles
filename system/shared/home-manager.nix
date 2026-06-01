@@ -265,6 +265,7 @@ in
     shellAliases = {
       cat = "bat";
       wt = "git worktree";
+      codex = "/Applications/Codex.app/Contents/Resources/codex";
 
       # Use 'bunx' to run commands from the bun package manager
       opencode = "bunx opencode-ai";
