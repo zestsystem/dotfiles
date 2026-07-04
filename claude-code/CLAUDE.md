@@ -13,7 +13,7 @@ The main loop (Fable) is the orchestrator and reviewer, NOT the workhorse. Every
 - Per-domain model folklore ("model X is best at front-end") is never adopted directly — it enters the scorecard as a hypothesis and earns routing on ~3+ graded results.
 - **Fable keeps only**: task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and anything a lower tier already failed at (escalate one tier per failure; don't retry the same tier).
 
-Inline is acceptable only for trivially small edits (a few lines) or work inseparable from main-context judgment. When in doubt, delegate.
+Inline is acceptable only for trivially small edits (a few lines) or work inseparable from main-context judgment. Also keep verify≈solve work in Fable — novel algorithms, subtle concurrency, security reasoning, tricky migrations: if a diff can't be judged without re-deriving the solution, delegation costs MORE than inline. Litmus test before delegating: "can I verify this without redoing it?" Otherwise, when in doubt, delegate.
 
 Drive subagents **sequentially** in this environment — parallel autonomous subagents have failed here before (sandboxed git writes).
 
@@ -23,6 +23,8 @@ Every subagent's output gets reviewed BEFORE it is used, built on, or presented 
 1. **Machine checks (zero Fable tokens):** typecheck/lint/tests on code diffs; open/render generated files. For haiku-tier mechanical work, this plus a diff skim is the whole review.
 2. **Fable diff-read:** standard sonnet work — read the diff/deliverable, not the transcript, depth scaled to risk.
 3. **Delegated deep review:** large or complex diffs go to a cheap reviewer agent (fresh sonnet or Codex); Fable reads the findings and spot-checks. Exception — money paths, auth/RBAC, and migrations always get Fable's own final read; no cheap-reviews-cheap rubber-stamping there.
+
+Subagent self-reviews, green-test claims, and cited precedents are claims to verify, not conclusions — check them against the repo, not against their own justification. And never let review depth hit zero: a rubber stamp makes the delegation savings fake (one bad merge outweighs months of saved tokens). Depth scales with blast radius — skim what machine checks already verify, read carefully what they can't.
 
 **The bar is quality, not just correctness — and Fable's taste is always a review factor.** For EVERY artifact type (code, design, prose, prompts, docs, naming, plans): if output is passable but noticeably below what Fable would have produced, that gap is a review finding, not a pass. Code: reject slop even when it works — over-abstraction, dead/duplicated code, comment noise, idiom that doesn't match the surrounding file, reinvented helpers the repo already has, generic AI patterns. Design/UI/UX: check against the design system (Figma SoT) and established component patterns — spacing, typography, platform conventions, i18n completeness. Everything else: clarity, structure, word choice, judgment calls. Sub-par output gets fixed in review or sent back to the subagent with a concrete redo prompt (escalate one tier if it repeats) — never passed through as-is. Taste review ≠ redoing the work in Fable: fix small gaps directly, send large gaps back.
 
