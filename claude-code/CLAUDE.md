@@ -9,6 +9,7 @@ The main loop (Fable) is the orchestrator and reviewer, NOT the workhorse. Every
 ## Delegate by default (Agent tool `model` param)
 - **haiku** — mechanical work: renames, boilerplate, config tweaks, simple scripts, file sweeps, format conversions, straightforward test additions.
 - **sonnet** — standard feature work, multi-file changes, typical bug fixes/debugging, research summaries, doc/prompt/content drafting, codebase exploration (Explore agent).
+- **codex (gpt-5.5, use-codex skill)** — provisional PREFERRED lane for spec-complete implementation tasks (esp. back-end) that a written prompt fully specifies: burns ZERO Claude tokens (OpenAI meter). Low reasoning for mechanical, xhigh for substantive. NOT for work needing session context, MCP tools, structured output, or mid-flight steering — that stays sonnet. Codex diffs keep the mandated prettier + i18n locale checks; demote back to sonnet-default if grades slip below B+ or rework exceeds the sonnet baseline.
 - **opus** — escalation tier when sonnet fails, plus hard front-end/UI work while scorecard hypothesis H1 is under test. Expensive: never the default.
 - Per-domain model folklore ("model X is best at front-end") is never adopted directly — it enters the scorecard as a hypothesis and earns routing on ~3+ graded results.
 - **Fable keeps only**: task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and anything a lower tier already failed at (escalate one tier per failure; don't retry the same tier).
