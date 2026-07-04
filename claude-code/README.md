@@ -19,3 +19,14 @@ fresh machine the scorecard starts empty and rebuilds from new ratings.
 
 The use-codex skill additionally requires the Codex CLI to be installed on
 the machine.
+
+## Weekly delegation report
+
+`bin/delegation-report.sh` produces a weekly economics/quality digest —
+ccusage per-model spend (incl. Codex), delegation-log quality aggregates,
+merged-PR throughput — synthesized by `claude -p` into
+`~/.claude/delegation-reports/`. Scheduled Mondays 9:23am by a launchd agent
+declared in `system/shared/claude-code.nix`; it activates on any machine
+after `darwin-rebuild switch`. Run manually anytime; `DRY=1` prints raw data
+without the Claude synthesis. Reports, delegation-log, and scorecard stay
+machine-local (not in this repo) by design.
