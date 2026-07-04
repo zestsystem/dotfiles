@@ -11,6 +11,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$HOME/.config\" && [ -n \"$(git status --porcelain -uno -- claude-code)\" ] && git commit -q -m \"claude-code: auto-sync claude config\" -- claude-code && git push -q origin main; true",
+            "async": true,
+            "timeout": 30,
+            "statusMessage": "Syncing claude config to dotfiles"
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
