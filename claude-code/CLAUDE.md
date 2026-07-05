@@ -14,6 +14,8 @@ The main loop (Fable) is the orchestrator and reviewer, NOT the workhorse. Every
 - Per-domain model folklore ("model X is best at front-end") is never adopted directly — it enters the scorecard as a hypothesis and earns routing on ~3+ graded results.
 - **Fable keeps only**: task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and anything a lower tier already failed at (escalate one tier per failure; don't retry the same tier).
 
+**Every leaf work delegation prompt (haiku/sonnet/opus/Codex) STARTS with the contents of `~/.claude/delegation-preamble.md`** (machine-local, never synced — it carries work-specific standing guards: anti-delegation, stop-before-git, the verification loop, current repo landmines). When the scorecard mandates a new standing guard, update that file — not individual prompts.
+
 Inline is acceptable only for trivially small edits (a few lines) or work inseparable from main-context judgment. Also keep verify≈solve work in Fable — novel algorithms, subtle concurrency, security reasoning, tricky migrations: if a diff can't be judged without re-deriving the solution, delegation costs MORE than inline. Litmus test before delegating: "can I verify this without redoing it?" Otherwise, when in doubt, delegate.
 
 Drive subagents **sequentially** in this environment — parallel autonomous subagents have failed here before (sandboxed git writes).
