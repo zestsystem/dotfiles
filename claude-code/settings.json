@@ -18,32 +18,33 @@
           {
             "type": "command",
             "command": "cd \"$HOME/.config\" && [ -n \"$(git status --porcelain -uno -- claude-code)\" ] && git commit -q -m \"claude-code: auto-sync claude config\" -- claude-code && git push -q origin main; true",
-            "async": true,
             "timeout": 30,
-            "statusMessage": "Syncing claude config to dotfiles"
+            "statusMessage": "Syncing claude config to dotfiles",
+            "async": true
           }
         ]
       }
     ]
-  },
-  "enabledPlugins": {
-    "playwright@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
   },
   "statusLine": {
     "type": "command",
     "command": "bun x ccusage statusline",
     "padding": 0
   },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "preferredNotifChannel": "terminal_bell",
+  "agentPushNotifEnabled": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754078592851
-  },
-  "agentPushNotifEnabled": true
+  }
 }
