@@ -34,6 +34,8 @@ gather() {
            redos: (map(.redos // 0) | add),
            substantive_fixes: (map(.substantive_fixes // 0) | add),
            taste_nits: (map(.taste_nits // 0) | add),
+           taste_avg: ((map(.taste | select(. != null)) | if length > 0 then (add / length * 10 | round / 10) else null end)),
+           taste_scored: (map(select(.taste != null)) | length),
            gates_green: (map(select(.gates_green == true)) | length),
            grades: (map(.grade // "?") | join(","))})' "$log" 2>/dev/null \
       || echo "(log parse error)"
@@ -43,6 +45,25 @@ gather() {
     jq -c 'select(.executor | not)' "$log" 2>/dev/null || true
   else
     echo "(no delegation-log.jsonl yet — if delegation clearly happened this week, flag as protocol drift)"
+  fi
+
+  echo
+  echo "## model economics config (meter semantics: subscription = utilization vs ceiling, metered = real dollars)"
+  cat "$HOME/.claude/model-economics.json" 2>/dev/null || echo "(missing — treat all ccusage dollars as API-metered spend)"
+
+  echo
+  echo "## codex subscription utilization (live telemetry from the latest codex session)"
+  local latest_codex
+  latest_codex=$(ls -t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -1)
+  if [ -n "${latest_codex:-}" ]; then
+    jq -c '.. | objects | select(has("rate_limits")) | .rate_limits
+           | {plan: .plan_type,
+              five_hour_used_pct: .primary.used_percent,
+              weekly_used_pct: .secondary.used_percent,
+              weekly_resets: (.secondary.resets_at | todate)}' "$latest_codex" 2>/dev/null | tail -1 \
+      || echo "(telemetry unparseable)"
+  else
+    echo "(no codex session telemetry found)"
   fi
 
   echo
@@ -78,7 +99,7 @@ if [ "${DRY:-0}" = "1" ]; then
   exit 0
 fi
 
-PROMPT='You are producing Mike'\''s weekly delegation-protocol digest from the raw data on stdin. Codex (gpt-5.5) spend is REAL spend on the OpenAI meter — treat it as a first-class cost lane alongside Claude models, never as free. Apply any grade-correction / escaped-defect lines to the referenced task BEFORE aggregating grades. Write concise markdown: (1) spend by model incl. Codex, week-over-week direction if a previous digest is included; (2) two efficiency ratios: orchestrator-cost-per-merged-PR (the main-loop model — Fable before 2026-07-07, Opus 4.8 after) AND all-in-cost-per-merged-PR (every model + Codex); (3) per-executor quality (grades, substantive-fix rate, redo rate, escaped defects) from the log aggregates; (4) cost-per-quality check on the Codex lane: ccusage gpt-5.5 dollars vs its grades — flag if ext_tokens_missing shows per-task Codex usage is not being recorded; (5) exactly ONE routing recommendation (promote/demote/keep testing a lane) grounded in the scorecard grade anchors AND cost per accepted task across both meters; (6) protocol-drift check: if the delegation log is missing or sparse relative to visible delegation activity, say so plainly. Under 45 lines, no preamble.'
+PROMPT='You are producing Mike'\''s weekly delegation-protocol digest from the raw data on stdin. Interpret dollars through the model-economics config: SUBSCRIPTION lanes (Claude plan models, Codex on ChatGPT Pro) have marginal cost ~0 — for those, report utilization vs the allotment (codex telemetry weekly_used_pct; note if approaching limits) and API-equivalent value captured vs the subscription price; METERED lanes (per the config, e.g. Fable after 2026-07-07) are real dollars. Apply any grade-correction / escaped-defect lines to the referenced task BEFORE aggregating. Write concise markdown: (1) value/spend by model incl. Codex, week-over-week direction if a previous digest is included, each labeled subscription-value or metered-spend; (2) two efficiency ratios: orchestrator-cost-per-merged-PR (main-loop model — Fable before 2026-07-07, Opus 4.8 after) AND all-in-per-merged-PR; (3) per-executor quality: correctness grades (substantive-fix rate, redo rate, escaped defects) AND taste_avg (1-5 craft score) — flag any lane with A-band correctness but taste_avg <= 3 as a demotion candidate, and note taste_scored coverage if most tasks lack the score; (4) Codex lane check: utilization headroom + flag if ext_tokens_missing shows per-task usage is not being recorded; (5) exactly ONE routing recommendation (promote/demote/keep testing) grounded in the scorecard anchors, taste, and cost-per-accepted-task on each lane'\''s own meter; (6) protocol-drift check: if the log is sparse relative to visible delegation activity, or a new model/price appears in ccusage that is missing from the economics config, say so plainly. Under 50 lines, no preamble.'
 
 if command -v claude >/dev/null 2>&1; then
   printf '%s\n' "$DATA" | claude -p "$PROMPT" > "$OUT" 2>>"$OUT_DIR/launchd.err.log" \
