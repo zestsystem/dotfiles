@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Per-model Claude + Codex spend from local transcripts (via ccusage), meter-aware.
+# Claude Code's UI shows aggregate token cost only; this breaks it down by model and
+# labels each lane subscription-value vs metered-REAL-dollars using
+# ~/.claude/model-economics.json (optional — degrades to plain API-equivalent).
+#
+# Usage: model-spend [DAYS]   (default 7)
+set -uo pipefail
+export PATH="$HOME/.local/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
+DAYS="${1:-7}"
+SINCE=$(date -v-"$DAYS"d +%Y%m%d)
+
+npx -y ccusage@latest daily --since "$SINCE" --json 2>/dev/null | DAYS="$DAYS" node -e '
+const fs = require("fs");
+const days = (JSON.parse(fs.readFileSync(0, "utf8")).daily) || [];
+
+let econ = null;
+try { econ = JSON.parse(fs.readFileSync(process.env.HOME + "/.claude/model-economics.json", "utf8")); } catch {}
+
+// meter semantics per model: longest-prefix match against economics lanes
+function laneFor(model) {
+  if (!econ) return null;
+  let best = null;
+  for (const lane of econ.lanes || []) {
+    const id = (lane.model || "").split(" ")[0]; // "gpt-5.5 @ ..." -> "gpt-5.5"
+    if (id && model.startsWith(id) && (!best || id.length > best.idLen)) {
+      best = { lane, idLen: id.length };
+    }
+  }
+  return best?.lane ?? null;
+}
+function meterFor(model, date) {
+  const lane = laneFor(model);
+  if (!lane) return { label: "unknown", metered: false };
+  let meter = lane.meter;
+  for (const ch of lane.meter_changes || []) if (date >= ch.from) meter = ch.meter;
+  const billing = econ.meters?.[meter]?.billing || "unknown";
+  return { label: meter, metered: billing === "metered" };
+}
+
+const agg = {}; // model -> {value, real, out, cacheRead, days:Set}
+for (const day of days) {
+  const date = day.period || day.date || "";
+  for (const m of day.modelBreakdowns || []) {
+    const model = m.modelName;
+    agg[model] = agg[model] || { value: 0, real: 0, out: 0, cacheRead: 0 };
+    const { metered } = meterFor(model, date);
+    agg[model][metered ? "real" : "value"] += m.cost || 0;
+    agg[model].out += m.outputTokens || 0;
+    agg[model].cacheRead += m.cacheReadTokens || 0;
+  }
+}
+
+const rows = Object.entries(agg).sort((a, b) => (b[1].value + b[1].real) - (a[1].value + a[1].real));
+const fmt = (n) => "$" + n.toFixed(2);
+let tv = 0, tr = 0;
+console.log(`Per-model spend, last ${process.env.DAYS} day(s)  (source: local transcripts via ccusage)`);
+console.log("");
+console.log("model".padEnd(28) + "REAL $".padStart(10) + "sub-value $".padStart(13) + "  out-tok".padStart(10) + "  cache-read".padStart(13));
+for (const [model, v] of rows) {
+  tv += v.value; tr += v.real;
+  console.log(
+    model.padEnd(28) +
+    (v.real ? fmt(v.real) : "-").padStart(10) +
+    (v.value ? fmt(v.value) : "-").padStart(13) +
+    ((v.out / 1e6).toFixed(1) + "M").padStart(10) +
+    ((v.cacheRead / 1e6).toFixed(0) + "M").padStart(13)
+  );
+}
+console.log("-".repeat(74));
+console.log("TOTAL".padEnd(28) + fmt(tr).padStart(10) + fmt(tv).padStart(13));
+console.log("");
+if (tr > 0) console.log(`REAL $ = metered lanes (billed money). Sub-value = API-equivalent captured on subscription plans.`);
+else console.log(`No metered spend in window. Sub-value = API-equivalent captured on subscription plans (marginal cost ~0).`);
+
+// Fable callout: real spend since its metered date, if any lane defines one
+const fable = (econ?.lanes || []).find(l => l.executor === "fable");
+const cutover = fable?.meter_changes?.[0]?.from;
+if (cutover) {
+  let fableReal = 0;
+  for (const day of days) {
+    const date = day.period || day.date || "";
+    if (date < cutover) continue;
+    for (const m of day.modelBreakdowns || [])
+      if (m.modelName.startsWith("claude-fable")) fableReal += m.cost || 0;
+  }
+  console.log(`Fable metered (real $) since ${cutover}: ${fmt(fableReal)}  — authoritative bill: Anthropic Console > Settings > Usage`);
+}
+'
