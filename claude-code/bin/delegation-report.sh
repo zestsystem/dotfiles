@@ -23,17 +23,24 @@ gather() {
   local log="$HOME/.claude/delegation-log.jsonl"
   if [ -f "$log" ]; then
     jq -s --arg since "$SINCE_ISO" '
-      map(select((.date // "") >= $since)) |
-      group_by(.executor // "unknown") |
+      def exmap: {"codex-gpt-5.5":"codex-gpt-5.5-xhigh","codex-gpt5.5-xhigh":"codex-gpt-5.5-xhigh","codex-gpt5.5-low":"codex-gpt-5.5-low"};
+      map(select(.executor) | select((.date // "") >= $since)
+          | .executor = (exmap[.executor] // .executor)) |
+      group_by(.executor) |
       map({executor: .[0].executor, tasks: length,
            claude_tokens: (map(.tokens // 0) | add),
            ext_tokens: (map(.ext_tokens // 0) | add),
+           ext_tokens_missing: (map(select(.ext_tokens == null)) | length),
            redos: (map(.redos // 0) | add),
            substantive_fixes: (map(.substantive_fixes // 0) | add),
            taste_nits: (map(.taste_nits // 0) | add),
            gates_green: (map(select(.gates_green == true)) | length),
            grades: (map(.grade // "?") | join(","))})' "$log" 2>/dev/null \
       || echo "(log parse error)"
+
+    echo
+    echo "## grade corrections + escaped defects (apply to the aggregates above)"
+    jq -c 'select(.executor | not)' "$log" 2>/dev/null || true
   else
     echo "(no delegation-log.jsonl yet — if delegation clearly happened this week, flag as protocol drift)"
   fi
