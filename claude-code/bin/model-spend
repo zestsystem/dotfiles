@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# Per-model Claude + Codex spend from local transcripts (via ccusage), meter-aware.
-# Claude Code's UI shows aggregate token cost only; this breaks it down by model and
-# labels each lane subscription-value vs metered-REAL-dollars using
-# ~/.claude/model-economics.json (optional — degrades to plain API-equivalent).
+# Per-model Claude + Codex usage from local transcripts (via ccusage).
+#
+# HONEST SCOPE: local transcripts record token counts and service_tier (speed),
+# but NOT billing attribution — there is no sub-vs-credit flag in the data, and
+# no public API for consumer credit balance. So this tool reports API-EQUIVALENT
+# VALUE only (what the tokens would cost at API rates). It cannot and does not
+# claim what Anthropic actually billed you. For real credit dollars, the single
+# source of truth is Anthropic Console > Settings > Usage.
+#
+# What it CAN do: flag lanes that model-economics.json marks credit-billable, and
+# show their API-equivalent value as a credit-EXPOSURE CEILING (actual is ≤ this,
+# since subscription may still cover part). No date math fabricating a dollar bill.
 #
 # Usage: model-spend [DAYS]   (default 7)
 set -uo pipefail
@@ -18,73 +26,59 @@ const days = (JSON.parse(fs.readFileSync(0, "utf8")).daily) || [];
 let econ = null;
 try { econ = JSON.parse(fs.readFileSync(process.env.HOME + "/.claude/model-economics.json", "utf8")); } catch {}
 
-// meter semantics per model: longest-prefix match against economics lanes
+// longest-prefix lane match; returns the lane so we can read its credit flag/note
 function laneFor(model) {
   if (!econ) return null;
   let best = null;
   for (const lane of econ.lanes || []) {
-    const id = (lane.model || "").split(" ")[0]; // "gpt-5.5 @ ..." -> "gpt-5.5"
-    if (id && model.startsWith(id) && (!best || id.length > best.idLen)) {
-      best = { lane, idLen: id.length };
-    }
+    const id = (lane.model || "").split(" ")[0];
+    if (id && model.startsWith(id) && (!best || id.length > best.idLen)) best = { lane, idLen: id.length };
   }
   return best?.lane ?? null;
 }
-function meterFor(model, date) {
-  const lane = laneFor(model);
-  if (!lane) return { label: "unknown", metered: false };
-  let meter = lane.meter;
-  for (const ch of lane.meter_changes || []) if (date >= ch.from) meter = ch.meter;
-  const billing = econ.meters?.[meter]?.billing || "unknown";
-  return { label: meter, metered: billing === "metered" };
-}
 
-const agg = {}; // model -> {value, real, out, cacheRead, days:Set}
-for (const day of days) {
-  const date = day.period || day.date || "";
+const agg = {};
+for (const day of days)
   for (const m of day.modelBreakdowns || []) {
     const model = m.modelName;
-    agg[model] = agg[model] || { value: 0, real: 0, out: 0, cacheRead: 0 };
-    const { metered } = meterFor(model, date);
-    agg[model][metered ? "real" : "value"] += m.cost || 0;
+    agg[model] = agg[model] || { value: 0, out: 0, cacheRead: 0 };
+    agg[model].value += m.cost || 0;
     agg[model].out += m.outputTokens || 0;
     agg[model].cacheRead += m.cacheReadTokens || 0;
   }
-}
 
-const rows = Object.entries(agg).sort((a, b) => (b[1].value + b[1].real) - (a[1].value + a[1].real));
+const rows = Object.entries(agg).sort((a, b) => b[1].value - a[1].value);
 const fmt = (n) => "$" + n.toFixed(2);
-let tv = 0, tr = 0;
-console.log(`Per-model spend, last ${process.env.DAYS} day(s)  (source: local transcripts via ccusage)`);
-console.log("");
-console.log("model".padEnd(28) + "REAL $".padStart(10) + "sub-value $".padStart(13) + "  out-tok".padStart(10) + "  cache-read".padStart(13));
+let total = 0;
+const creditNotes = [];
+
+console.log(`Per-model API-equivalent value, last ${process.env.DAYS} day(s)  (local transcripts via ccusage)`);
+console.log("Value = what these tokens cost at API rates. NOT a bill — see note below.\n");
+console.log("model".padEnd(28) + "API-equiv $".padStart(13) + "credit?".padStart(9) + "  out-tok".padStart(10) + "  cache-read".padStart(13));
 for (const [model, v] of rows) {
-  tv += v.value; tr += v.real;
+  total += v.value;
+  const lane = laneFor(model);
+  const creditable = !!(lane && lane.credit_billable);
+  if (creditable) creditNotes.push({ model, value: v.value, status: lane.credit_status || "" });
   console.log(
     model.padEnd(28) +
-    (v.real ? fmt(v.real) : "-").padStart(10) +
-    (v.value ? fmt(v.value) : "-").padStart(13) +
+    fmt(v.value).padStart(13) +
+    (creditable ? "MAYBE" : "no").padStart(9) +
     ((v.out / 1e6).toFixed(1) + "M").padStart(10) +
     ((v.cacheRead / 1e6).toFixed(0) + "M").padStart(13)
   );
 }
-console.log("-".repeat(74));
-console.log("TOTAL".padEnd(28) + fmt(tr).padStart(10) + fmt(tv).padStart(13));
-console.log("");
-if (tr > 0) console.log(`REAL $ = metered lanes (billed money). Sub-value = API-equivalent captured on subscription plans.`);
-else console.log(`No metered spend in window. Sub-value = API-equivalent captured on subscription plans (marginal cost ~0).`);
+console.log("-".repeat(73));
+console.log("TOTAL".padEnd(28) + fmt(total).padStart(13));
 
-// Fable callout: real spend since its metered date, if any lane defines one
-const fable = (econ?.lanes || []).find(l => l.executor === "fable");
-const cutover = fable?.meter_changes?.[0]?.from;
-if (cutover) {
-  let fableReal = 0;
-  for (const day of days) {
-    const date = day.period || day.date || "";
-    if (date < cutover) continue;
-    for (const m of day.modelBreakdowns || [])
-      if (m.modelName.startsWith("claude-fable")) fableReal += m.cost || 0;
-  }
-  console.log(`Fable metered (real $) since ${cutover}: ${fmt(fableReal)}  — authoritative bill: Anthropic Console > Settings > Usage`);
+console.log("");
+if (creditNotes.length) {
+  console.log("CREDIT EXPOSURE (may bill real money — verify actual $ in Console > Settings > Usage):");
+  for (const n of creditNotes)
+    console.log(`  ${n.model}: up to ${fmt(n.value)} API-equiv over window is credit-ELIGIBLE (actual ≤ this; sub may cover part).` + (n.status ? `\n    status: ${n.status}` : ""));
+  console.log("  Local transcripts carry NO sub-vs-credit flag — Console is the only authoritative bill.");
+} else {
+  console.log("No credit-billable lanes flagged in model-economics.json. All value shown is subscription-covered.");
+  console.log("(If Anthropic changes what bills to credits, set credit_billable + credit_status on that lane — no code change.)");
 }
 '
