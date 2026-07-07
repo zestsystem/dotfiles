@@ -23,7 +23,7 @@ gather() {
   local log="$HOME/.claude/delegation-log.jsonl"
   if [ -f "$log" ]; then
     jq -s --arg since "$SINCE_ISO" '
-      def exmap: {"codex-gpt-5.5":"codex-gpt-5.5-xhigh","codex-gpt5.5-xhigh":"codex-gpt-5.5-xhigh","codex-gpt5.5-low":"codex-gpt-5.5-low"};
+      def exmap: {"codex-gpt-5.5":"codex-gpt-5.5-xhigh","codex-gpt5.5-xhigh":"codex-gpt-5.5-xhigh","codex-gpt5.5-low":"codex-gpt-5.5-low","codex-gpt-5.5-xhigh-orphaned":"codex-gpt-5.5-xhigh"};
       map(select(.executor) | select((.date // "") >= $since)
           | .executor = (exmap[.executor] // .executor)) |
       group_by(.executor) |
@@ -67,7 +67,16 @@ gather() {
   fi
 
   echo
+  echo "## per-model cost aggregate last 7d (JSON — use THIS to separate Fable/Opus/etc, not the daily table)"
+  npx -y ccusage@latest daily --since "$SINCE_CC" --json 2>/dev/null | node -e '
+    const d=JSON.parse(require("fs").readFileSync(0,"utf8")).daily||[];const per={};
+    for(const day of d)for(const m of day.modelBreakdowns||[]){per[m.modelName]=per[m.modelName]||{cost:0,out:0};per[m.modelName].cost+=m.cost||0;per[m.modelName].out+=m.outputTokens||0;}
+    console.log(JSON.stringify(Object.fromEntries(Object.entries(per).map(([k,v])=>[k,{cost:+v.cost.toFixed(2),out_tokens:v.out}])),null,1));
+  ' 2>/dev/null || echo "(unavailable)"
+
+  echo
   echo "## merged PRs last 7d (repos discovered under ~/projects/work at runtime)"
+  echo "(caveat: GitHub search index lags — counts for the most recent ~24h read LOW; treat ratios as provisional for the newest day)"
   local seen=" " total=0 d url slug n
   for d in "$HOME"/projects/work/*/ "$HOME"/projects/work/*/*/; do
     [ -e "$d/.git" ] || continue

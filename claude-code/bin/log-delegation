@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Validating appender for ~/.claude/delegation-log.jsonl — use this INSTEAD of raw echo >>.
+# Rejects unknown executors/cats (the enum drift that fragments the weekly digest) and
+# placeholder ext_tokens. Usage: log-delegation '<json line>'
+set -euo pipefail
+LOG="$HOME/.claude/delegation-log.jsonl"
+EXECUTORS="haiku sonnet sonnet-explore opus opus-explore fable codex-gpt-5.5-low codex-gpt-5.5-xhigh"
+CATS="coding/back-end coding/front-end-web coding/front-end-mobile coding/infra exploration writing"
+line="$1"
+echo "$line" | jq -e . > /dev/null || { echo "REJECTED: not valid JSON" >&2; exit 1; }
+ex=$(echo "$line" | jq -r '.executor // empty')
+cat_=$(echo "$line" | jq -r '.cat // empty')
+ext=$(echo "$line" | jq -r '.ext_tokens // "null"')
+if [ -n "$ex" ]; then
+  echo " $EXECUTORS " | grep -q " $ex " || { echo "REJECTED: executor '$ex' not in canon: $EXECUTORS" >&2; exit 1; }
+  echo " $CATS " | grep -q " $cat_ " || { echo "REJECTED: cat '$cat_' not in canon: $CATS" >&2; exit 1; }
+  case "$ex" in codex-*) [ "$ext" = "1" ] && { echo "REJECTED: ext_tokens=1 is a placeholder — use the real codex usage-footer count or null" >&2; exit 1; };; esac
+  echo "$line" | jq -e 'has("taste")' > /dev/null || echo "WARN: missing taste score (required since 2026-07-06)" >&2
+fi
+echo "$line" >> "$LOG" && echo "logged"
