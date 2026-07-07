@@ -75,7 +75,7 @@ gather() {
     slug=$(printf '%s' "$url" | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')
     case "$seen" in *" $slug "*) continue ;; esac
     seen="$seen$slug "
-    n=$(gh pr list -R "$slug" --state merged --search "merged:>=$SINCE_ISO" --json number --jq length 2>/dev/null) || continue
+    n=$(gh pr list -R "$slug" --state merged --search "merged:>=$SINCE_ISO" --limit 300 --json number --jq length 2>/dev/null) || continue
     echo "$slug: $n"
     total=$((total + n))
   done
