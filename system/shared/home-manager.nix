@@ -281,7 +281,7 @@ in
     ];
 
     initContent = ''
-      export PATH="$HOME/.local/bin:$GOPATH/bin''${PATH:+:}$PATH"
+      export PATH="$HOME/.local/bin:$HOME/.config/claude-code/bin:$GOPATH/bin''${PATH:+:}$PATH"
 
       if [ "$TMUX" = "" ]; then tmux a || tmux new; fi
 
