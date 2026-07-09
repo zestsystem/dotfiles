@@ -10,13 +10,15 @@ Machine-local companions (never synced, shared by both runtimes):
 
 ## Regimes — named strategies, switchable as the Codex/Claude dynamic changes
 
-**ACTIVE REGIME: `sol-first` (since 2026-07-09).** Switching regimes = edit this line + the scorecard's regime note, commit. Dormant regimes are preserved below intact — do not delete or let them rot; they are the fallback positions.
+**ACTIVE REGIME: `fable-director` (since 2026-07-09 PM — Fable limit reset, back on plan headroom per Mike).** Switching regimes = edit this line + the scorecard's regime note, commit. Dormant regimes are preserved below intact — do not delete or let them rot; they are the fallback positions.
 
-### Regime `fable-director` (DORMANT — ran 2026-07-03 → 2026-07-08)
-The strategy while Fable was in-plan: Fable runs the main loop of most sessions as an efficient director. The main loop is the orchestrator and reviewer, NOT the workhorse — every turn, before doing substantive work inline, ask "could a cheaper subagent do this?"; if yes, delegate (gpt/opus/sonnet/haiku lanes), every time, not just for coding. Orchestrator tokens go to decomposition, judgment, review, and conversation only. Inline acceptable only for trivially small edits or work inseparable from main-context judgment.
-Reactivation triggers: Fable (or a successor top model) returns to subscription; the Codex lane's quality or headroom collapses; or the taste gap between orchestrator-directed work and Sol-directed work proves larger than the metered cost difference.
+**Regime selector (how Mike decides which line to set):** the regime follows the Fable meter. Fable billing the plan with headroom remaining → `fable-director`. Fable metered, or plan headroom spent for the window → `sol-first`. Mid-window it's fine to run `fable-director` early and drop to `sol-first` when Fable headroom gets low — flip the line when you flip your behavior, so both runtimes stay in sync.
 
-### Regime `sol-first` (ACTIVE) — Sol as workhorse, Fable as architect + taste
+### Regime `fable-director` (ACTIVE) — Fable as efficient director
+The strategy while Fable is in-plan: Fable runs the main loop of most sessions as an efficient director. The main loop is the orchestrator and reviewer, NOT the workhorse — every turn, before doing substantive work inline, ask "could a cheaper subagent do this?"; if yes, delegate (codex/opus/sonnet/haiku lanes, per the shared lane table below — regimes never pin model versions; lanes are config), every time, not just for coding. Orchestrator tokens go to decomposition, judgment, review, and conversation only. Inline acceptable only for trivially small edits or work inseparable from main-context judgment. This is the token-efficient shape by design: Fable burns headroom on judgment, not implementation.
+Fallback triggers (→ `sol-first`): Fable moves back to metered credits, or plan headroom for the window runs low.
+
+### Regime `sol-first` (DORMANT — ran 2026-07-09 AM; the fallback whenever Fable is metered or headroom-starved) — Sol as workhorse, Fable as architect + taste
 - **Default main loop for most sessions: GPT 5.6 Sol** (ChatGPT/Codex app or CLI, subscription headroom). Sol sessions run throughput mode: delegate-by-default to Codex subagent lanes, orchestrate, review at every handoff.
 - **Fable sessions are intentional and scoped to Fable's comparative advantage:** epic/initiative kickoffs, planning and decomposition, architecture/design decisions, gnarly debugging or judgment calls, security-sensitive reasoning, and taste review of work produced elsewhere. In THAT lane, be liberal — full reasoning depth, ambitious proposals, no delegation-for-economy on judgment work; the spend decision was made when the session started.
 - **Fable still never grinds implementation.** Even mid-Fable-session, spec-complete implementation goes out to the codex/sonnet/haiku lanes exactly as in `fable-director`: Fable writes the spec, delegates, reviews the diff against its own taste bar. Metered Fable tokens buy judgment, not typing.
