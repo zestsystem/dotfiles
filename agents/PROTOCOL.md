@@ -8,32 +8,31 @@ Machine-local companions (never synced, shared by both runtimes):
 - `~/.claude/delegation-log.jsonl` — one JSON line per delegated task (append via `~/.config/claude-code/bin/log-delegation`)
 - `~/.claude/model-economics.json` — lane/meter economics; price changes and new models are edits to that one file
 
-## Session routing (Mike, 2026-07-09)
+## Regimes — named strategies, switchable as the Codex/Claude dynamic changes
 
-- **Default main loop for most tasks: GPT 5.6 Sol** (ChatGPT/Codex app or CLI). It bills the ChatGPT Pro subscription — marginal cost ~0 until the 5-hour/weekly limits bind, so its real currency is limit headroom.
-- **Fable 5 sessions are intentional, not default.** Fable bills metered usage credits (real dollars per token). Mike starts a Fable session deliberately: epic/initiative kickoffs, architecture and design, the hardest problems, and the standing pre-approved slots recorded in the scorecard (weekly adversarial review, one flagship brief per sprint, failure escalations).
-- "The orchestrator" throughout this file = whichever model runs the main loop of the current session.
+**ACTIVE REGIME: `sol-first` (since 2026-07-09).** Switching regimes = edit this line + the scorecard's regime note, commit. Dormant regimes are preserved below intact — do not delete or let them rot; they are the fallback positions.
 
-## Two operating modes — keyed by the main loop's meter
+### Regime `fable-director` (DORMANT — ran 2026-07-03 → 2026-07-08)
+The strategy while Fable was in-plan: Fable runs the main loop of most sessions as an efficient director. The main loop is the orchestrator and reviewer, NOT the workhorse — every turn, before doing substantive work inline, ask "could a cheaper subagent do this?"; if yes, delegate (gpt/opus/sonnet/haiku lanes), every time, not just for coding. Orchestrator tokens go to decomposition, judgment, review, and conversation only. Inline acceptable only for trivially small edits or work inseparable from main-context judgment.
+Reactivation triggers: Fable (or a successor top model) returns to subscription; the Codex lane's quality or headroom collapses; or the taste gap between orchestrator-directed work and Sol-directed work proves larger than the metered cost difference.
 
-**Deep mode (metered main loop — Fable 5).** By starting the session, Mike already made the spend decision; the waste to avoid is a Fable session spent doing router work a subscription model could do. Therefore:
-- No delegation-for-economy. The old "could a cheaper subagent do this?" per-turn check does NOT apply. Do substantive work inline at full depth — reasoning, design, implementation, review.
-- Delegate only when it improves the outcome, not the bill: mechanical sweeps that would pollute context/attention, parallel read-only exploration, isolation (sandboxed experiments). Review discipline on those handoffs is unchanged.
-- Be ambitious by default: propose the better design when you see one, pursue quality past the literal spec, don't trim scope or depth to save tokens. The taste bar is Fable's own best output.
-- Guardrails that survive: confirm irreversible/outward-facing actions; report honestly; the outer monthly budget cap + alerts live in the scorecard's routing adjustments.
+### Regime `sol-first` (ACTIVE) — Sol as workhorse, Fable as architect + taste
+- **Default main loop for most sessions: GPT 5.6 Sol** (ChatGPT/Codex app or CLI, subscription headroom). Sol sessions run throughput mode: delegate-by-default to Codex subagent lanes, orchestrate, review at every handoff.
+- **Fable sessions are intentional and scoped to Fable's comparative advantage:** epic/initiative kickoffs, planning and decomposition, architecture/design decisions, gnarly debugging or judgment calls, security-sensitive reasoning, and taste review of work produced elsewhere. In THAT lane, be liberal — full reasoning depth, ambitious proposals, no delegation-for-economy on judgment work; the spend decision was made when the session started.
+- **Fable still never grinds implementation.** Even mid-Fable-session, spec-complete implementation goes out to the codex/sonnet/haiku lanes exactly as in `fable-director`: Fable writes the spec, delegates, reviews the diff against its own taste bar. Metered Fable tokens buy judgment, not typing.
+- **Cross-runtime taste gate:** work done in Sol sessions can pull Fable in for a single-turn taste consult (mechanics in the Codex adapter below) — on Mike's ask, or pre-PR for substantial/user-facing diffs. This complements, not replaces: (a) the standing weekly Fable adversarial review of the riskiest merged surface, and (b) `/code-review ultra` (ultrareview), which is a deep multi-agent CORRECTNESS review for big risky branches — user-triggered and billed, Mike runs it himself, agents never launch it. Taste consult = craft; ultrareview = bugs; weekly slot = post-merge risk.
+- Escalation beyond the taste consult (sustained Fable effort on a problem) = Mike starts a Fable session; agent-initiated metered spend stays limited to the standing pre-approved slots in the scorecard or Mike's explicit go-ahead.
 
-**Throughput mode (subscription main loop — GPT 5.6 Sol, Opus 4.8).** The classic economics hold: the main loop is the orchestrator and reviewer, not the workhorse. Every turn, before doing substantive work inline, ask "could a cheaper lane do this?" — if yes, delegate. Orchestrator effort goes to decomposition, judgment, review, and conversation.
-
-## Delegation lanes (throughput mode; deep mode uses them only for the outcome-improving cases above)
+## Delegation lanes (used by whichever model orchestrates)
 
 - **haiku** — mechanical work: renames, boilerplate, config tweaks, simple scripts, file sweeps, format conversions, straightforward test additions.
 - **sonnet** — standard feature work, multi-file changes, typical bug fixes/debugging, research summaries, doc/prompt/content drafting, codebase exploration. Also the home for anything needing session context, MCP tools, structured output, or mid-flight steering.
 - **codex (gpt-5.6-sol)** — default lane for spec-complete implementation a written prompt fully specifies — back-end, front-end, and mobile. Low reasoning for mechanical, xhigh for substantive. Status: provisional default inheriting gpt-5.5's confirmed lane (generation upgrade of a settled default); grade under versioned executors `codex-gpt-5.6-sol-low|xhigh` per the scorecard, ~3+ graded results to confirm; `gpt-5.5` stays the fallback if Sol's early grades slip below B+ or taste ≤3. Codex diffs keep the mandated review checks recorded in the scorecard (prettier + i18n locale completeness).
 - **opus** — escalation tier when sonnet fails, plus scorecard-hypothesis routing (e.g. hard UI). Never the default.
-- **fable (metered)** — escalation above opus and single-turn consultations, only via the standing pre-approved slots in the scorecard or Mike's explicit go-ahead. When Mike wants sustained Fable effort, he starts a Fable session (deep mode) instead.
+- **fable (metered)** — judgment lane: planning, architecture, taste consults, escalation above opus — via Fable sessions Mike starts, the standing pre-approved scorecard slots, or Mike's explicit go-ahead.
 - Escalate one tier per failure; don't retry the same tier. Per-domain model folklore ("model X is best at front-end") is never adopted directly — it enters the scorecard as a hypothesis and earns routing on ~3+ graded results.
 
-**Keep in the orchestrator regardless of mode:** task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and verify≈solve work — novel algorithms, subtle concurrency, security reasoning, tricky migrations: if a diff can't be judged without re-deriving the solution, delegation costs more than inline. Litmus test before delegating: "can I verify this without redoing it?"
+**Keep in the orchestrator regardless of regime:** task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and verify≈solve work — novel algorithms, subtle concurrency, security reasoning, tricky migrations: if a diff can't be judged without re-deriving the solution, delegation costs more than inline. Litmus test before delegating: "can I verify this without redoing it?"
 
 **Every leaf work delegation prompt starts with the contents of `~/.claude/delegation-preamble.md`** (machine-local — carries the standing guards: anti-delegation, stop-before-git, the verification loop, current repo landmines). When the scorecard mandates a new standing guard, update that file — not individual prompts.
 
@@ -49,23 +48,28 @@ Every subagent's output gets reviewed BEFORE it is used, built on, or presented 
 
 Subagent self-reviews, green-test claims, and cited precedents are claims to verify, not conclusions — check them against the repo, not against their own justification. Never let review depth hit zero: one bad merge outweighs months of saved tokens.
 
-**The bar is quality, not just correctness — the orchestrator's taste is always a review factor.** For EVERY artifact type (code, design, prose, prompts, docs, naming, plans): output that is passable but noticeably below what the orchestrator would have produced is a review finding, not a pass. Code: reject slop even when it works — over-abstraction, dead/duplicated code, comment noise, idiom that doesn't match the surrounding file, reinvented helpers the repo already has, generic AI patterns. Design/UI/UX: check against the design system and established component patterns. Where a project ships a `/review-standards` skill, apply it at every handoff — it codifies this bar for that repo. Sub-par output gets fixed in review or sent back with a concrete redo prompt (escalate one tier if it repeats) — never passed through as-is. Fix small gaps directly; send large gaps back.
+**The bar is quality, not just correctness — the orchestrator's taste is always a review factor.** For EVERY artifact type (code, design, prose, prompts, docs, naming, plans): output that is passable but noticeably below what the reviewing model would have produced is a review finding, not a pass. Code: reject slop even when it works — over-abstraction, dead/duplicated code, comment noise, idiom that doesn't match the surrounding file, reinvented helpers the repo already has, generic AI patterns. Design/UI/UX: check against the design system and established component patterns. Where a project ships a `/review-standards` skill, apply it at every handoff — it codifies this bar for that repo. Sub-par output gets fixed in review or sent back with a concrete redo prompt (escalate one tier if it repeats) — never passed through as-is. Fix small gaps directly; send large gaps back. Under `sol-first`, the Fable taste consult is the top rung of this ladder — use it where Sol's own review would be the fox judging the henhouse (large user-facing surfaces, design-heavy work).
 
 The main loop owns correctness and quality regardless of who reviewed. Deep end-of-branch review stays a manual trigger; Mike is the final approver on merges.
 
 ## Rate delegated work — ratings evolve the routing
 
-After every delegated task (any runtime, any vendor): one-line capability note in the summary (executor, usable as-is?, rework needed) AND a scorecard entry (date, task category, grade, one-line why) AND one JSON line appended to the delegation log via `log-delegation` (schema + canonical executor enums in the scorecard header; `ext_tokens` = real Codex usage-footer count, never a placeholder).
+After every delegated task (any runtime, any vendor): one-line capability note in the summary (executor, usable as-is?, rework needed) AND a scorecard entry (date, task category, grade, one-line why) AND one JSON line appended to the delegation log via `log-delegation` (schema + canonical executor enums in the scorecard header; `ext_tokens` = real Codex usage-footer count, never a placeholder). Fable taste consults get logged too (executor `fable`, the task's own category) — they are metered spend the digest must see.
 
 Before delegating, consult the scorecard for the task category and apply its routing adjustments. Adjust routing on patterns (~3+ consistent results), not single data points. Measurement is two-axis: the correctness grade AND a `taste` score 1–5 (anchors in the scorecard header); a lane averaging taste ≤3 over ~3+ tasks is a demotion signal even at A-band correctness. When a lane's underlying model changes generation, version the executor name (e.g. `codex-gpt-5.6-sol-xhigh`, `sonnet-6`) so grades never blend across models. Economics ground truth: `npx ccusage daily`, the weekly digest (launchd agent runs `~/.config/claude-code/bin/delegation-report.sh` Mondays 9:23am → `~/.claude/delegation-reports/`, tracking orchestrator-cost-per-merged-PR and all-in-cost-per-merged-PR), and `~/.claude/model-economics.json` for meter semantics — subscription lanes judged by headroom/value-captured, metered lanes by real dollars.
 
 ## Runtime adapters
 
-### Claude Code (main loop = Fable deep mode, or Opus throughput mode)
+### Claude Code (main loop = Fable architect sessions; or Opus under `fable-director`)
 - Delegate via the Agent tool `model` param (haiku/sonnet/opus). Codex lane via the `use-codex` skill (`~/.claude/skills/use-codex/SKILL.md`) — heads-up: its canonical invocation uses `--yolo` (no Codex sandbox/approvals), so scope prompts narrowly and keep destructive operations out of Codex's hands.
 - Machine-local per-project memory and repo CLAUDE.md/AGENTS.md files apply as usual.
 
-### Codex CLI / ChatGPT app (main loop = GPT 5.6 Sol throughput mode)
-- Delegation targets are Codex subagents: `codex exec -m gpt-5.6-sol` at low reasoning (mechanical) or xhigh (substantive). There is no Claude-lane access from this runtime — do not shell out to Claude CLIs.
-- When a task exceeds this lane's depth (repeat failures, verify≈solve territory, architecture-level ambiguity) or needs Claude-side tooling, stop and recommend Mike take it to a Fable session — don't grind.
-- Same preamble, same review tiers, same scorecard/log duties: prepend `~/.claude/delegation-preamble.md` to leaf delegations and record grades via `log-delegation` exactly as above.
+### Codex CLI / ChatGPT app (main loop = GPT 5.6 Sol, throughput mode)
+- Delegation targets are Codex subagents: `codex exec -m gpt-5.6-sol` at low reasoning (mechanical) or xhigh (substantive). Same preamble, same review tiers, same scorecard/log duties as above.
+- **Fable taste consult (the ONE permitted Claude call from this runtime):** single-turn, read-only, diff-scoped. Canonical form:
+  ```bash
+  git diff main...HEAD | claude -p --model claude-fable-5 \
+    "Taste-review this diff per the anchors in ~/.claude/delegation-scorecard.md (Grade anchors > Taste score): idiom fit vs surrounding code, naming, structure, design quality, slop (over-abstraction, dead code, comment noise, reinvented helpers, generic AI patterns). Do NOT review correctness. Return: taste score 1-5, specific findings with file:line, and which findings block the PR."
+  ```
+  Triggers: Mike asks, or pre-PR on substantial/user-facing diffs. It is metered spend (~$1–5/consult): log it, and it counts against the monthly Fable budget guardrail in the scorecard. No other Claude CLI use from this runtime — no multi-turn sessions, no implementation hand-offs.
+- When a task exceeds this lane's depth (repeat failures, verify≈solve territory, architecture-level ambiguity), stop and recommend Mike take it to a Fable session — don't grind, and don't try to simulate one via chained consults.
