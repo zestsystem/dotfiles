@@ -168,7 +168,7 @@ The shape: **call → read → decide → call → read → decide**. Each promp
 
 ## Local environment notes (added at install, 2026-07-03)
 
-- `codex` on this machine is a shell alias to `/Applications/Codex.app/Contents/Resources/codex` (codex-cli 0.142.5). If `codex` doesn't resolve in a non-interactive shell, use that full path.
+- The CLI binary lives at `/Applications/ChatGPT.app/Contents/Resources/codex` (codex-cli 0.144.0-alpha.4 as of 2026-07-09; Codex.app was folded into ChatGPT.app). The `codex` shell alias in `~/.zshrc` still points at the old `/Applications/Codex.app/...` path and is stale — in non-interactive shells always use the ChatGPT.app path.
 - `--yolo` disables Codex's sandbox and approval prompts — the subagent can run arbitrary commands. Prefer scoping prompts to a specific worktree and avoid pointing it at destructive operations.
 - Write `-o` output files to the session scratchpad directory rather than `/tmp` when one is available.
 - Source: https://public.my-agent-04eee268.sandbox.dev/skills/use-codex.md
