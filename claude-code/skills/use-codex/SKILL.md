@@ -15,7 +15,7 @@ Spawn autonomous Codex CLI subagents to offload context-heavy work. Subagents bu
 When invoking this skill:
 
 1. **Clarify intent.** Figure out what the user wants. If unclear, ask. Inline args ("use codex to review my auth plan") usually carry the intent — infer from them. Common buckets: second-opinion code review, refactor, plan validation, implementation of features, fresh perspective on a stuck bug, parallel comparison of approaches.
-2. **Pick the right reasoning tier** Use GPT 5.5 model with either low or xhigh reasoning
+2. **Pick the right reasoning tier** Use GPT 5.6 Sol model (`gpt-5.6-sol`) with either low or xhigh reasoning
 3. **Spawn the subagent** using the canonical invocation (Basic Usage). Pipe long prompts via stdin.
 4. **Act autonomously while it runs.** Don't ask for permission mid-flight; the parent only sees the final result, so mid-task pauses waste tokens. Pause only for genuinely destructive operations (data loss, external impact, security).
 5. **Monitor, don't fire-and-forget.** Check completion, verify quality, retry on failure, answer follow-ups if blocked. Feel free to run multiple sequential or parallel codex subagents.
@@ -23,7 +23,7 @@ When invoking this skill:
 
 ## Model + Reasoning Selection
 
-Always use GPT 5.5 (latest), but choose from low or xhigh reasoning. You may use other reasoning but usually simple, short, or basic tasks are best done by low reasoning and hard, large, or long tasks are done by xhigh reasoning.
+Always use GPT 5.6 Sol (`gpt-5.6-sol`, latest — `gpt-5.5` is the fallback lane per the scorecard if Sol regresses or hits capacity errors), but choose from low or xhigh reasoning. You may use other reasoning but usually simple, short, or basic tasks are best done by low reasoning and hard, large, or long tasks are done by xhigh reasoning.
 
 ## Intelligent Prompting
 
@@ -82,11 +82,11 @@ Vague prompts produce vague work; specific prompts produce useful work.
 
 **Default: pipe the prompt via stdin using `-` as the positional argument.** Inline string prompts work for short ones, but anything with newlines, quotes, backticks, or `$` should be piped to avoid shell-escaping bugs.
 
-Canonical invocation (capture output to file, GPT 5.5 with xhigh reasoning):
+Canonical invocation (capture output to file, GPT 5.6 Sol with xhigh reasoning):
 
 ```bash
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.5 -c 'model_reasoning_effort="xhigh"' \
+  -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' \
   -o /tmp/codex-result.txt -
 [TASK CONTEXT]
 You are analyzing /path/to/repo.
@@ -104,7 +104,7 @@ result=$(cat /tmp/codex-result.txt)
 
 **Variants** (only what changes from the canonical form):
 
-- **Low-effort task** (simple search, short fetch, basic lookup): swap `-c 'model_reasoning_effort="xhigh"'` → `-c 'model_reasoning_effort="low"'`. Model stays `gpt-5.5`.
+- **Low-effort task** (simple search, short fetch, basic lookup): swap `-c 'model_reasoning_effort="xhigh"'` → `-c 'model_reasoning_effort="low"'`. Model stays `gpt-5.6-sol`.
 - **Machine-parsable output:** swap `-o /tmp/codex-result.txt` → `--json`, then pipe through `jq -r 'select(.event=="turn.completed") | .content'`. Prefer `-o` whenever possible — it skips JSON parsing and avoids terminal truncation on long outputs.
 
 ## Parallel Subagents
@@ -113,12 +113,12 @@ Spawn multiple subagents for independent tasks — research two topics in parall
 
 ```bash
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.5 -c 'model_reasoning_effort="xhigh"' -o /tmp/agent-a.txt - &
+  -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -o /tmp/agent-a.txt - &
 Approach A: solve [problem] using [strategy A]. Return diff + rationale.
 EOF
 
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.5 -c 'model_reasoning_effort="xhigh"' -o /tmp/agent-b.txt - &
+  -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -o /tmp/agent-b.txt - &
 Approach B: solve [problem] using [strategy B]. Return diff + rationale.
 EOF
 
@@ -136,7 +136,7 @@ When the parent is driving a multi-step engagement — each next call is a *judg
 ```bash
 # Step 1: dispatch the first subagent
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.5 -c 'model_reasoning_effort="xhigh"' \
+  -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' \
   -o /tmp/codex-step-1.txt -
 Implement the auth middleware in src/middleware/auth.ts per the spec at docs/auth.md.
 Return: summary of changes + files touched.
@@ -157,7 +157,7 @@ Review the auth middleware changes summarized below for security holes
 EOF
   cat /tmp/codex-step-1.txt
 } | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.5 -c 'model_reasoning_effort="xhigh"' \
+  -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' \
   -o /tmp/codex-step-2.txt -
 
 # Step 3: parent reads /tmp/codex-step-2.txt, dispatches a fix pass — or moves
