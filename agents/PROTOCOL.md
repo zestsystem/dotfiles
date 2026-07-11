@@ -35,6 +35,8 @@ Fallback triggers (→ `sol-first`): Fable moves back to metered credits, or pla
 - **fable (metered)** — judgment lane: planning, architecture, taste consults, escalation above opus — via Fable sessions Mike starts, the standing pre-approved scorecard slots, or Mike's explicit go-ahead.
 - Escalate one tier per failure; don't retry the same tier. Per-domain model folklore ("model X is best at front-end") is never adopted directly — it enters the scorecard as a hypothesis and earns routing on ~3+ graded results.
 
+**Pin model AND effort on every delegated call — never inherit.** Both runtimes default an unset subagent to the orchestrator's own model/effort, which silently runs delegated work at orchestrator prices — the inverse of the lane table (the scorecard's pre-policy inherited-Fable entries are the local scar tissue). Every delegation names its lane's model and its effort per the mechanical/substantive split; an unpinned delegation is a review finding, same class as a missing preamble. Deliberately running orchestrator-tier subagents (e.g. an exhaustive ultracode session) stays allowed — as an explicit per-call choice, never a silent default.
+
 **Keep in the orchestrator regardless of regime:** task decomposition, architecture/design decisions, reviewing subagent output before presenting, security-sensitive judgment, direct user conversation, and verify≈solve work — novel algorithms, subtle concurrency, security reasoning, tricky migrations: if a diff can't be judged without re-deriving the solution, delegation costs more than inline. Litmus test before delegating: "can I verify this without redoing it?"
 
 **Every leaf work delegation prompt starts with the contents of `~/.claude/delegation-preamble.md`** (machine-local — carries the standing guards: anti-delegation, stop-before-git, the verification loop, current repo landmines). When the scorecard mandates a new standing guard, update that file — not individual prompts.
@@ -64,11 +66,11 @@ Before delegating, consult the scorecard for the task category and apply its rou
 ## Runtime adapters
 
 ### Claude Code (main loop = Fable architect sessions; or Opus under `fable-director`)
-- Delegate via the Agent tool `model` param (haiku/sonnet/opus). Codex lane via the `use-codex` skill (`~/.claude/skills/use-codex/SKILL.md`) — heads-up: its canonical invocation uses `--yolo` (no Codex sandbox/approvals), so scope prompts narrowly and keep destructive operations out of Codex's hands.
+- Delegate via the Agent tool — set `model` (haiku/sonnet/opus) explicitly per the pinning rule; same for Workflow `agent()` calls (`model` + `effort` opts), which otherwise inherit the session's main-loop model and effort. Codex lane via the `use-codex` skill (`~/.claude/skills/use-codex/SKILL.md`) — heads-up: its canonical invocation uses `--yolo` (no Codex sandbox/approvals), so scope prompts narrowly and keep destructive operations out of Codex's hands.
 - Machine-local per-project memory and repo CLAUDE.md/AGENTS.md files apply as usual.
 
 ### Codex CLI / ChatGPT app (main loop = GPT 5.6 Sol, throughput mode)
-- Delegation targets are Codex subagents: `codex exec -m gpt-5.6-sol` at low reasoning (mechanical) or xhigh (substantive). Same preamble, same review tiers, same scorecard/log duties as above.
+- Delegation targets are Codex subagents: `codex exec -m gpt-5.6-sol` at low reasoning (mechanical) or xhigh (substantive) — always pass the reasoning level explicitly; unset, spawned subagents inherit the parent session's effort (observed in the wild burning ultra-tier tokens on mechanical work). Same preamble, same review tiers, same scorecard/log duties as above.
 - **Fable taste consult (the ONE permitted Claude call from this runtime):** single-turn, read-only, diff-scoped. Canonical form:
   ```bash
   git diff main...HEAD | claude -p --model claude-fable-5 \
