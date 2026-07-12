@@ -23,7 +23,7 @@ When invoking this skill:
 
 ## Model + Reasoning Selection
 
-Always use GPT 5.6 Sol (`gpt-5.6-sol`, latest — `gpt-5.5` is the fallback lane per the scorecard if Sol regresses or hits capacity errors), but choose from low or high reasoning. Simple, short, or basic tasks are best done by low reasoning; hard, large, or long tasks by high reasoning. (Effort experiment since 2026-07-11 per PROTOCOL.md: high replaced xhigh as the substantive default — grade under `codex-gpt-5.6-sol-high`. Reserve xhigh for explicit per-task escalation on the gnarliest specs, logged as `codex-gpt-5.6-sol-xhigh`.)
+Always use GPT 5.6 Sol (`gpt-5.6-sol`, latest — `gpt-5.5` is the fallback lane per the scorecard if Sol regresses or hits capacity errors), but choose from low or high reasoning. Simple, short, or basic tasks are best done by low reasoning; hard, large, or long tasks by high reasoning. (Settled default since 2026-07-12 per PROTOCOL.md: high replaced xhigh as the substantive default — confirmed on 7 graded results at ~half the token burn; grade under `codex-gpt-5.6-sol-high`. Reserve xhigh for explicit per-task escalation on the gnarliest specs, logged as `codex-gpt-5.6-sol-xhigh`.)
 
 Never route subagent work through Codex "Ultra" mode or fast mode: Ultra currently over-spawns child subagents at inherited effort (known harness bugs), and fast mode bills 2.5× credits — compounded by how long 5.6 runs per turn. Related footgun: if a 5.6 subagent spawns its own children, they inherit its model+effort; the delegation preamble's no-subagents guard covers this — don't drop it.
 
