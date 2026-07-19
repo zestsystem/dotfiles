@@ -41,11 +41,30 @@ const agg = {};
 for (const day of days)
   for (const m of day.modelBreakdowns || []) {
     const model = m.modelName;
-    agg[model] = agg[model] || { value: 0, out: 0, cacheRead: 0 };
+    agg[model] = agg[model] || { value: 0, out: 0, cacheRead: 0, input: 0, cacheCreate: 0 };
     agg[model].value += m.cost || 0;
     agg[model].out += m.outputTokens || 0;
     agg[model].cacheRead += m.cacheReadTokens || 0;
+    agg[model].input += m.inputTokens || 0;
+    agg[model].cacheCreate += m.cacheCreationTokens || 0;
   }
+
+// ccusage has no pricing entry for some models (e.g. gateway-routed k3) and
+// silently reports cost=0 despite real token counts. When that happens and
+// the model has a priced lane in model-economics.json, price it from there
+// instead of showing a misleading $0.00.
+const estimated = new Set();
+for (const [model, v] of Object.entries(agg)) {
+  if (v.value > 0) continue;
+  if (!(v.out || v.cacheRead || v.input || v.cacheCreate)) continue;
+  const lane = laneFor(model);
+  const rate = lane && lane.api_usd_per_mtok;
+  if (!rate) continue;
+  const cacheReadRate = rate.cache_read ?? rate.in;
+  const cacheCreateRate = rate.cache_write ?? rate.in;
+  v.value = (v.input * rate.in + v.cacheRead * cacheReadRate + v.cacheCreate * cacheCreateRate + v.out * rate.out) / 1e6;
+  estimated.add(model);
+}
 
 const rows = Object.entries(agg).sort((a, b) => b[1].value - a[1].value);
 const fmt = (n) => "$" + n.toFixed(2);
@@ -61,7 +80,7 @@ for (const [model, v] of rows) {
   const creditable = !!(lane && lane.credit_billable);
   if (creditable) creditNotes.push({ model, value: v.value, status: lane.credit_status || "" });
   console.log(
-    model.padEnd(28) +
+    (model + (estimated.has(model) ? "*" : "")).padEnd(28) +
     fmt(v.value).padStart(13) +
     (creditable ? "MAYBE" : "no").padStart(9) +
     ((v.out / 1e6).toFixed(1) + "M").padStart(10) +
@@ -70,6 +89,9 @@ for (const [model, v] of rows) {
 }
 console.log("-".repeat(73));
 console.log("TOTAL".padEnd(28) + fmt(total).padStart(13));
+if (estimated.size) {
+  console.log(`\n* ccusage has no pricing data for this model — value estimated from model-economics.json lane rates instead (snapshot, may drift from current upstream pricing).`);
+}
 
 console.log("");
 if (creditNotes.length) {
