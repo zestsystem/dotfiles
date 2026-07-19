@@ -13,4 +13,5 @@ with pkgs;
   nodejs_22
   mysql84
   bun
+  yt-dlp
 ]
