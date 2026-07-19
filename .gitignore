@@ -18,3 +18,7 @@ git/**
 direnv/**
 planetscale/**
 .aider*
+
+configstore/**
+opencode/**
+voidpet-studio/**
