@@ -71,6 +71,32 @@ After every delegated task (any runtime, any vendor): one-line capability note i
 
 Before delegating, consult the scorecard for the task category and apply its routing adjustments. Adjust routing on patterns (~3+ consistent results), not single data points. Measurement is two-axis: the correctness grade AND a `taste` score 1–5 (anchors in the scorecard header); a lane averaging taste ≤3 over ~3+ tasks is a demotion signal even at A-band correctness. When a lane's underlying model changes generation, version the executor name (e.g. `codex-gpt-5.6-sol-xhigh`, `sonnet-6`) so grades never blend across models. Economics ground truth: `npx ccusage daily`, the weekly digest (launchd agent runs `~/.config/claude-code/bin/delegation-report.sh` Mondays 9:23am → `~/.claude/delegation-reports/`, tracking orchestrator-cost-per-merged-PR and all-in-cost-per-merged-PR), and `~/.claude/model-economics.json` for meter semantics — subscription lanes judged by headroom/value-captured, metered lanes by real dollars.
 
+## Linear claim protocol (cross-director coordination)
+
+Multiple directors (Claude/Fable sessions, k3-seated sessions, Codex/ChatGPT sessions) work the same Linear workspace concurrently. Ownership is label-based; comments are the message bus. All agents act through Mike's Linear identity, so assignee/actor can NOT distinguish directors — the `agent` label group is the only ownership signal. Each runtime uses whatever Linear access it has (MCP, or the API-token fallback noted in machine-local memory).
+
+**The `agent` label group** (one label per issue — Linear enforces group exclusivity): `agent:claude` (Claude Code / Fable sessions), `agent:codex` (Codex / ChatGPT sessions), `agent:k3` (Kimi-seated sessions), `agent:human-only`. No group label = unclaimed, free for any director. `agent:human-only` = off-limits to ALL agents: never claim, never modify, no exceptions — Mike sets and clears it.
+
+**When to claim:** before moving an issue to In Progress, or whenever work will span sessions. Quick single-session fixes under Mike's live direction need no ceremony — but if it crosses a session boundary, claim it. Claiming a parent epic covers its unlabeled children; a child's own label overrides.
+
+**How to claim:** set your label AND post a `🔒 CLAIM` comment (format below) — the comment is the audit trail and race tiebreaker. After claiming, re-read the issue: if another director's CLAIM landed concurrently, the earlier comment timestamp wins; the loser removes its label and posts a yield.
+
+**Comment message bus** — structured first line so any agent can parse issue state at a glance; free-form body below it:
+- `🔒 CLAIM <agent> · <date>` — plus branch/worktree and a one-line plan
+- `📍 STATUS <agent> · <date>` — checkpoint: branch, commits pushed, what's verified, next step. Post at minimum at every session end while holding a claim — an issue with no STATUS trail looks stale and invites takeover.
+- `🚧 BLOCKED <agent> · <date>` — why + what would unblock; an explicit standing invitation for takeover
+- `🤝 HANDOFF <from> → <to> · <date>` — voluntary transfer with full context dump
+- `⚠️ TAKEOVER <new> ← <old> · <date> · <reason>` — see below
+- `✅ RELEASE <agent> · <date>` — done (leave the label as provenance) or abandoned (remove it)
+
+**Autonomous takeover — Mike's permission is NOT required.** A director may take a claimed issue when ANY of: (a) stale — no comments, status changes, or branch activity from the holder for 3+ days; (b) the holder posted BLOCKED and you can unblock; (c) Mike directs it. Procedure, in order: (1) read the full comment thread and check for the holder's pushed branches/worktrees — a takeover CONTINUES their work from its actual state, never blind-restarts; (2) swap the label to yours; (3) post the `⚠️ TAKEOVER` comment addressed to the displaced agent: reason, what state you found (branch, last commit), what you'll do next. The comment IS the displaced agent's notification. Never take: `agent:human-only`, or issues with holder activity within 3 days (absent BLOCKED/HANDOFF/Mike's direction). A label swap without a TAKEOVER comment is a protocol violation.
+
+**Session-start sweep (how notification lands):** at the start of any session doing Linear-tracked work, list issues carrying YOUR label and skim new comments — that is how you learn your work was taken, handed to you, or answered. If your work was taken and you disagree: comment, don't revert the label.
+
+**What claims do NOT change:** a claim scopes issue ownership, not authority — Mike remains final approver on merges; money/auth/migration holds stay holds; worktree isolation still applies and two directors never share a worktree regardless of labels.
+
+**Leaves never touch claims:** claim/takeover/handoff is director-level judgment. Delegated subagents never set, swap, or remove `agent:*` labels or post bus comments (the preamble's external-side-effects guard covers this).
+
 ## Runtime adapters
 
 ### Claude Code (main loop = the seated director — k3 as of 2026-07-19; Fable/Opus when the fable seat is active)
