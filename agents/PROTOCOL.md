@@ -98,6 +98,42 @@ Multiple directors (Claude/Fable sessions, k3-seated sessions, Codex/ChatGPT ses
 
 **Leaves never touch claims:** claim/takeover/handoff is director-level judgment. Delegated subagents never set, swap, or remove `agent:*` labels or post bus comments (the preamble's external-side-effects guard covers this).
 
+## Notion claim protocol (cross-director coordination)
+
+For work that lives natively in company Notion. Same doctrine as the Linear
+protocol — comments are the message bus, same six-line comment format
+(🔒 CLAIM / 📍 STATUS / 🚧 BLOCKED / 🤝 HANDOFF / ⚠️ TAKEOVER / ✅ RELEASE) —
+with Notion-specific mechanics. The canonical rules live on the "Agent Claim
+Protocol" page next to the "Agent Tasks" database (under Docs) in company
+Notion; this section is the summary directors carry between sessions.
+
+- **Ownership signal:** the `Agent` single-select on the Agent Tasks database
+  (`claude` / `codex` / `k3` / `human-only`). Empty = unclaimed. Single-select
+  gives exclusivity for free. `human-only` = off-limits to ALL agents — Mike
+  sets and clears it. All connectors currently act as Mike, so created_by
+  canNOT distinguish directors — the Agent select + signed comment lines are
+  the source of truth until per-agent integration tokens exist.
+- **Claim race (no atomic claim in Notion):** set the Agent select + Status +
+  Last Heartbeat, post the 🔒 CLAIM comment, then RE-READ the thread — if two
+  CLAIMs landed concurrently, earliest server-side created_time wins; the
+  loser clears the select and posts a yield.
+- **Heartbeat:** `Last Heartbeat` date, set at claim and at every session end
+  while holding a claim (post 📍 STATUS at the same time). A `Stale` formula
+  flips at 3+ days.
+- **Takeover tiers:** active work (Claimed/In Progress/In Review) follows the
+  Linear rules — 3-day stale, or holder posted BLOCKED and you can unblock,
+  or Mike directs it. Soft-reserved BACKLOG items (Agent set, Status still
+  Backlog) are takeable after 1 day without a heartbeat — backlog
+  reservations expire fast. Takeover procedure is identical to Linear's:
+  read thread + branches first, swap the select, post ⚠️ TAKEOVER.
+- **Epics:** claiming a parent task covers its unlabeled children (Epic
+  self-relation); a child's own Agent value overrides.
+- **Leaves never touch the database** — claims are director-level judgment;
+  enforced by never giving leaf prompts Notion access.
+- **Scope:** unchanged — voidpet code work stays on GitHub Issues, Linear
+  keeps its own claim protocol and board. Claims scope ownership, not
+  authority: Mike remains final approver on merges.
+
 ## Runtime adapters
 
 ### Claude Code (main loop = the seated director — k3 as of 2026-07-19; Fable/Opus when the fable seat is active)
