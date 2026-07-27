@@ -24,12 +24,12 @@ Collect before compiling (ask only for what's genuinely missing):
 Run all eight steps, in order. Do not skip the audits — they are the point.
 
 1. **Decompose** into candidate units. Each unit = one bounded job a single leaf session can complete spec-complete (a literal executor produces the right thing with zero inference). If a unit's `job:` can't be written unambiguously, the thinking isn't done — either resolve the ambiguity now or make resolving it its own upstream unit.
-2. **Fake-edge test** every implied ordering: does unit B actually consume an artifact of unit A? No named artifact → no edge → same wave.
+2. **Fake-edge test** every implied ordering: does unit B actually consume an artifact of unit A? No named artifact → no edge → same wave. Type each surviving edge: `contract` (names, types, keys, schemas — verified by fast gates, releases at merge) or `behavior` ("works end-to-end" — never releases at merge; see verify nodes, step 7).
 3. **Interface-first split** every surviving edge: if its artifact is a CONTRACT (enum/ID names, i18n keys, type signatures, schema stubs) rather than behavior — litmus: it could merge as a <~100-line diff — carve it into its own contract unit so consumers start immediately instead of waiting on the implementation behind it. A deep chain whose edges are all contracts is a compile error. Human gates get the same treatment: restructure so the gate blocks the smallest swappable unit (value substitution into already-landed placeholder structure), never the whole feature.
 4. **Write-set audit**: declare `writes:` globs for every unit, then compute pairwise overlaps across the whole epic. Overlap → add a real edge between them or merge the units. Disjoint write-sets are what make in-wave parallelism safe by construction.
 5. **Shared-constraints pre-flight** (protocol: "pre-flight shared constraints"): enumerate resource ceilings the batch will exhaust (dev-server slots, DB locks, CI concurrency) and serial costs that scale with wave count (rebase cycles, review attention). Any file that ≥2 units (or a concurrent epic) must touch gets a **wave-0 hot-spot eradication unit** — one-file-per-entity + auto-discovery/codegen so write-sets become disjoint by repo structure; "regenerate, don't hand-merge" is the fallback tax for hot spots not yet eradicated.
 6. **Contract each node**: fill the full AGENT SPEC (template below) — inputs, output shape, stop point.
-7. **Anchor each node**: `verify:` must be runnable commands (real gates, named test files) — never "should work". If no anchor exists for a unit, creating the anchor (a test, a checkable script) becomes part of the unit's job.
+7. **Anchor each node**: `verify:` must be runnable commands (real gates, named test files) — never "should work". If no anchor exists for a unit, creating the anchor (a test, a checkable script) becomes part of the unit's job. **Emit verify nodes for deferred verification:** when a unit's anchors are environment-bound (deployed env, simulator, seeded DB) and can't run pre-merge, the deferred verification becomes its own node blocking the unit's behavior-dependents — the irreversible step (launch/deploy) must sit downstream of it, and temporal gates (start dates) must leave room for it to run. Locally-runnable anchors still run pre-merge; money/auth/migration keep their pre-merge exception.
 8. **Assign lanes** at plan time per the protocol's lane table (frontend/UI vs default executor vs harness-exception vs judgment).
 9. **Emit the wave schedule**: topological layers of the dep graph, each wave capped at the merge gate's review bandwidth (~4–6 PRs), not lane capacity.
 10. **Post the decision bundle**: one comment on the epic enumerating every human gate — what it blocks, what decision is needed, and when it goes critical-path — so the human clears all decisions in one sitting instead of being paged per-gate mid-stream.
@@ -56,6 +56,7 @@ lane: <lane name from the protocol table>
 deps:
   - id: <ISSUE-ID of upstream unit>
     edge-data: "<the artifact this unit consumes from it>"
+    edge-type: contract | behavior
 ```
 
 A short human-readable paragraph MAY follow the block; the block is authoritative. The issue title stays a plain one-liner (humans scan boards by title).
@@ -89,6 +90,7 @@ Trigger: reality diverged from a spec (wrong assumption, discovered constraint),
 1. Read the epic manifest + all leaf states; identify the divergence point.
 2. Recompile ONLY the downstream untouched subgraph — claimed/in-flight/released work is preserved as-is.
 3. Rewrite affected unstarted leaf specs, update the manifest (bump the recompiled date), and post `🔄 REPLAN <agent> · <date>` on the epic with a one-line diff of what changed.
+4. **Post-merge defects are append-only — never flip a released node back to not-done** (breaks in-flight claims and the audit trail). A contract-preserving fix is a new small node; a contract-breaking fix inserts a repair node as a new `Blocked by` dependency of the affected dependents, with their holders notified on the message bus.
 
 ## Output to the user
 
