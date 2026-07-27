@@ -58,6 +58,27 @@ Exists so a new/unfamiliar model can be evaluated on its own merits, unrouted �
 
 Drive subagents that write to the same worktree **sequentially** — parallel writers have failed here before (sandboxed git writes). Parallel is fine for read-only exploration.
 
+## Work compilation (agent-adaptive decomposition)
+
+Epics of ~5+ units get COMPILED, not authored: human intent lives once at the epic level (a paragraph of why + hard constraints); leaf issues are machine-first artifacts a planner generates from it. At the leaf, structure replaces narrative — prose legibility is deliberately traded for execution properties; the epic stays the human-readable layer (Mike approves merges, and takeovers still need reconstructable intent). Below ~4–5 units, skip all of this — a normal issue under live direction needs no ceremony. Compilation is judgment-lane work, run at epic kickoff.
+
+**Each leaf issue opens with an `AGENT SPEC` fenced yaml block** (above any prose):
+- `job:` — ONE bounded job with an explicit stop point ("stop after PR opened").
+- `in:` — everything the leaf needs: files, context pointers, decisions already made. Spec-complete: a literal executor must produce the right thing with zero inference. If `job:` can't be written unambiguously, the thinking isn't done and the unit isn't ready to exist.
+- `out:` — deliverable shape (usually a PR: base branch, title prefix carrying the issue id for auto-close).
+- `writes:` — the DECLARED WRITE-SET (globs of files/surfaces the unit may touch). This is the parallelism contract: the planner computes pairwise overlaps across the epic — overlap forces an edge or a merge of the two units; disjoint write-sets are parallel by construction. Turns the false-independence failure into a compile-time error; the sequential-writers rule still governs anything undeclared.
+- `verify:` — anchors: runnable commands (real gates, named e2e files), never "should work". They travel into the PR description so merge review is confirm-the-anchors, not re-derive-the-correctness.
+- `lane:` — routed at plan time per the lane table, not at claim time.
+- `deps:` — real edges only, each carrying `edge-data:` naming the artifact consumed. If the planner can't name what passes along an edge, the edge doesn't get written — the fake-edge test, enforced structurally.
+
+**The epic description carries the graph manifest:** the full adjacency list + topological wave layers, so any director computes the runnable frontier from ONE read instead of N issue reads. **Frontier loop:** frontier = unclaimed nodes whose deps are all RELEASED → claim per the claim protocol → execute → release. Multiple directors drain the same frontier with zero coordination beyond claims, because in-wave write-set disjointness was guaranteed at compile time. The pre-flight shared-constraints check (above) runs as part of compilation, never as mid-batch discovery.
+
+**Replan rule:** the moment reality diverges from a spec (wrong schema assumption, discovered constraint), the discovering director posts `🔄 REPLAN <agent> · <date>` on the epic and recompiles the DOWNSTREAM untouched subgraph — claimed/in-flight work is preserved, only unstarted nodes get rewritten, and the manifest is updated in the same pass. A stale manifest is the anchor-less-graph failure mode: internally consistent, verified against nothing.
+
+**Wave sizing:** the merge gate is the true throughput ceiling — size waves to Mike's realistic review bandwidth (~4–6 PRs), not to lane capacity. Maximum upstream velocity that outruns the gate just relocates the queue.
+
+Substrate: whatever board holds the epic (Linear/Notion) — the claim protocols below are unchanged; compilation is a content standard layered on top, not a new tool. Claude Code adapter: the `/compile-epic` skill runs this pipeline end-to-end.
+
 ## Tiered review at every handoff
 
 Every subagent's output gets reviewed BEFORE it is used, built on, or presented — automatic, per handoff, never batched to the end (errors compound). Scale depth to blast radius, cheapest rung first:
