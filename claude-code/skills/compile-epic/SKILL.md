@@ -25,12 +25,14 @@ Run all eight steps, in order. Do not skip the audits — they are the point.
 
 1. **Decompose** into candidate units. Each unit = one bounded job a single leaf session can complete spec-complete (a literal executor produces the right thing with zero inference). If a unit's `job:` can't be written unambiguously, the thinking isn't done — either resolve the ambiguity now or make resolving it its own upstream unit.
 2. **Fake-edge test** every implied ordering: does unit B actually consume an artifact of unit A? No named artifact → no edge → same wave.
-3. **Write-set audit**: declare `writes:` globs for every unit, then compute pairwise overlaps across the whole epic. Overlap → add a real edge between them or merge the units. Disjoint write-sets are what make in-wave parallelism safe by construction.
-4. **Shared-constraints pre-flight** (protocol: "pre-flight shared constraints"): enumerate resource ceilings the batch will exhaust (dev-server slots, DB locks, CI concurrency), hot-spot files every wave must touch (consider a cheap restructure first as its own unit), and serial costs that scale with wave count (rebase cycles, review attention).
-5. **Contract each node**: fill the full AGENT SPEC (template below) — inputs, output shape, stop point.
-6. **Anchor each node**: `verify:` must be runnable commands (real gates, named test files) — never "should work". If no anchor exists for a unit, creating the anchor (a test, a checkable script) becomes part of the unit's job.
-7. **Assign lanes** at plan time per the protocol's lane table (frontend/UI vs default executor vs harness-exception vs judgment).
-8. **Emit the wave schedule**: topological layers of the dep graph, each wave capped at the merge gate's review bandwidth (~4–6 PRs), not lane capacity.
+3. **Interface-first split** every surviving edge: if its artifact is a CONTRACT (enum/ID names, i18n keys, type signatures, schema stubs) rather than behavior — litmus: it could merge as a <~100-line diff — carve it into its own contract unit so consumers start immediately instead of waiting on the implementation behind it. A deep chain whose edges are all contracts is a compile error. Human gates get the same treatment: restructure so the gate blocks the smallest swappable unit (value substitution into already-landed placeholder structure), never the whole feature.
+4. **Write-set audit**: declare `writes:` globs for every unit, then compute pairwise overlaps across the whole epic. Overlap → add a real edge between them or merge the units. Disjoint write-sets are what make in-wave parallelism safe by construction.
+5. **Shared-constraints pre-flight** (protocol: "pre-flight shared constraints"): enumerate resource ceilings the batch will exhaust (dev-server slots, DB locks, CI concurrency) and serial costs that scale with wave count (rebase cycles, review attention). Any file that ≥2 units (or a concurrent epic) must touch gets a **wave-0 hot-spot eradication unit** — one-file-per-entity + auto-discovery/codegen so write-sets become disjoint by repo structure; "regenerate, don't hand-merge" is the fallback tax for hot spots not yet eradicated.
+6. **Contract each node**: fill the full AGENT SPEC (template below) — inputs, output shape, stop point.
+7. **Anchor each node**: `verify:` must be runnable commands (real gates, named test files) — never "should work". If no anchor exists for a unit, creating the anchor (a test, a checkable script) becomes part of the unit's job.
+8. **Assign lanes** at plan time per the protocol's lane table (frontend/UI vs default executor vs harness-exception vs judgment).
+9. **Emit the wave schedule**: topological layers of the dep graph, each wave capped at the merge gate's review bandwidth (~4–6 PRs), not lane capacity.
+10. **Post the decision bundle**: one comment on the epic enumerating every human gate — what it blocks, what decision is needed, and when it goes critical-path — so the human clears all decisions in one sitting instead of being paged per-gate mid-stream.
 
 ## AGENT SPEC template (top of every leaf issue description)
 
@@ -72,12 +74,12 @@ EDGES:
 CONSTRAINTS: <shared ceilings + hot spots from step 4>
 ```
 
-**Frontier rule for executing directors:** frontier = unclaimed issues whose deps are all ✅ RELEASED. Claim via the substrate's claim protocol, execute, release. Never start a node whose deps aren't released, even if it "looks independent" — the manifest is the authority. Re-read the manifest immediately before EACH claim, never once per session.
+**Frontier rule for executing directors:** frontier = unclaimed issues whose deps (including gate nodes) are all ✅ RELEASED. Claim via the substrate's claim protocol, execute, release. Never start a node whose deps aren't released, even if it "looks independent". Where the substrate computes the frontier (Notion `Runnable` + Frontier view), that is the authority; elsewhere the manifest is. Either way, re-check immediately before EACH claim, never once per session.
 
 ## Substrate mechanics
 
 - **Linear:** create leaves as children of the epic (`parentId`); explicitly set state (issue creation defaults to Backlog); put the AGENT SPEC in each description and the manifest in the epic description. Claim protocol, `agent:*` labels, and the comment bus are unchanged by compilation.
-- **Notion:** same content standard; use the Agent Tasks database conventions (Epic relation, Agent select).
+- **Notion:** same content standard, but the graph lives as DATA (Agent Tasks database): deps go in the `Blocked by` self-relation, human gates are created as ROWS (Agent = `human-only`; Mike flips them Done to release downstream), `Lane` and `Wave` are set as properties, and the `Runnable` formula + "Frontier" view compute the claimable frontier live — executing directors claim from the Frontier view instead of parsing the manifest. The epic manifest carries only edge-data labels, write-set globs, and constraints.
 - Leaves never touch claims or the manifest — claim/replan is director-level judgment (protocol rule).
 
 ## Replan mode (`/compile-epic replan <epic-id>`)
