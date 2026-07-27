@@ -2,8 +2,12 @@
 # Validating appender for ~/.claude/delegation-log.jsonl — use this INSTEAD of raw echo >>.
 # Rejects unknown executors/cats (the enum drift that fragments the weekly digest) and
 # placeholder ext_tokens. Usage: log-delegation '<json line>'
+# Also fires open-experiment reminders (reads ~/.claude/experiments.json, machine-local):
+# this is the one chokepoint every delegation passes in every runtime, so experiment
+# triggers land here instead of relying on directors re-reading scorecard prose.
 set -euo pipefail
 LOG="$HOME/.claude/delegation-log.jsonl"
+EXP="$HOME/.claude/experiments.json"
 EXECUTORS="haiku sonnet sonnet-explore opus opus-5 opus-explore fable k3 codex-gpt-5.5-low codex-gpt-5.5-high codex-gpt-5.5-xhigh codex-gpt-5.6-sol-low codex-gpt-5.6-sol-high codex-gpt-5.6-sol-xhigh"
 CATS="coding/back-end coding/front-end-web coding/front-end-mobile coding/infra exploration writing"
 line="$1"
@@ -18,3 +22,24 @@ if [ -n "$ex" ]; then
   echo "$line" | jq -e 'has("taste")' > /dev/null || echo "WARN: missing taste score (required since 2026-07-06)" >&2
 fi
 echo "$line" >> "$LOG" && echo "logged"
+
+# --- Open-experiment triggers (non-fatal; never blocks the append above) ---
+if [ -f "$EXP" ] && [ -n "$cat_" ]; then
+  expfield=$(echo "$line" | jq -r '.exp // empty')
+  if [ -n "$expfield" ]; then
+    jq -e --arg id "$expfield" '.experiments[] | select(.id == $id)' "$EXP" > /dev/null 2>&1 \
+      || echo "WARN: exp '$expfield' not in experiments.json (closed experiment, or a typo — check the id)" >&2
+  fi
+  today=$(date +%F)
+  while IFS=$'\t' read -r id stale cats shadow quota reminder; do
+    echo " $cats " | grep -q " $cat_ " || continue
+    done_n=$(jq -r --arg id "$id" --arg sh "$shadow" 'select(.exp == $id and .executor == $sh) | 1' "$LOG" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$done_n" -ge "$quota" ]; then
+      echo "EXPERIMENT $id: quota reached ($done_n/$quota) — conclude it: move the verdict to the scorecard's routing adjustments and delete the entry from experiments.json" >&2
+    elif [[ "$today" > "$stale" ]]; then
+      echo "EXPERIMENT $id: STALE since $stale with $done_n/$quota datapoints — run it deliberately on the next matching task or close it with a scorecard note" >&2
+    elif [ "$expfield" != "$id" ]; then
+      echo "EXPERIMENT $id ACTIVE for cat '$cat_' ($done_n/$quota done, stale $stale): $reminder" >&2
+    fi
+  done < <(jq -r '.experiments[] | [.id, .stale, (.trigger_cats | join(" ")), .shadow_executor, (.quota | tostring), .reminder] | @tsv' "$EXP" 2>/dev/null)
+fi
