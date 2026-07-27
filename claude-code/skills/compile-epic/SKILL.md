@@ -72,7 +72,7 @@ EDGES:
 CONSTRAINTS: <shared ceilings + hot spots from step 4>
 ```
 
-**Frontier rule for executing directors:** frontier = unclaimed issues whose deps are all ✅ RELEASED. Claim via the substrate's claim protocol, execute, release. Never start a node whose deps aren't released, even if it "looks independent" — the manifest is the authority.
+**Frontier rule for executing directors:** frontier = unclaimed issues whose deps are all ✅ RELEASED. Claim via the substrate's claim protocol, execute, release. Never start a node whose deps aren't released, even if it "looks independent" — the manifest is the authority. Re-read the manifest immediately before EACH claim, never once per session.
 
 ## Substrate mechanics
 
@@ -83,6 +83,7 @@ CONSTRAINTS: <shared ceilings + hot spots from step 4>
 ## Replan mode (`/compile-epic replan <epic-id>`)
 
 Trigger: reality diverged from a spec (wrong assumption, discovered constraint), or a director posted 🔄 REPLAN.
+0. The REPLAN comment is a claim on the manifest: post `🔄 REPLAN <agent> · <date>` FIRST, re-read the thread — if a concurrent REPLAN has an earlier timestamp, yield and fold your divergence report into a comment for the winner instead of recompiling.
 1. Read the epic manifest + all leaf states; identify the divergence point.
 2. Recompile ONLY the downstream untouched subgraph — claimed/in-flight/released work is preserved as-is.
 3. Rewrite affected unstarted leaf specs, update the manifest (bump the recompiled date), and post `🔄 REPLAN <agent> · <date>` on the epic with a one-line diff of what changed.
