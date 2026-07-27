@@ -71,7 +71,7 @@ Epics of ~5+ units get COMPILED, not authored: human intent lives once at the ep
 - `writes:` — the DECLARED WRITE-SET (globs of files/surfaces the unit may touch). This is the parallelism contract: the planner computes pairwise overlaps across the epic — overlap forces an edge or a merge of the two units; disjoint write-sets are parallel by construction. Turns the false-independence failure into a compile-time error; the sequential-writers rule still governs anything undeclared.
 - `verify:` — anchors: runnable commands (real gates, named e2e files), never "should work". They travel into the PR description so merge review is confirm-the-anchors, not re-derive-the-correctness.
 - `lane:` — routed at plan time per the lane table, not at claim time. Compilation also consults the scorecard's OPEN EXPERIMENTS block: a unit matching an open experiment's trigger gets the experiment's arms compiled into its spec — plan-time routing must not silently bypass routing-active experiments (their reminder fires at the logging chokepoint, which is too late to shape a compiled graph).
-- `deps:` — real edges only, each carrying `edge-data:` naming the artifact consumed. If the planner can't name what passes along an edge, the edge doesn't get written — the fake-edge test, enforced structurally.
+- `deps:` — real edges only, each carrying `edge-data:` naming the artifact consumed, typed `contract` (names, types, keys, schemas) or `behavior` ("works end-to-end") — release semantics below. If the planner can't name what passes along an edge, the edge doesn't get written — the fake-edge test, enforced structurally.
 
 **Agent-optimized decomposition (Mike-directed, 2026-07-27 — parallel velocity outranks leaf legibility; the trade is bounded by the two human touchpoints below):**
 - **Interface-first splitting:** when an edge's `edge-data` is a CONTRACT (enum/ID names, i18n keys, type signatures, schema stubs) rather than behavior, compile a dedicated contract unit — the contract lands as a tiny early PR and consumers start immediately, instead of waiting on the full implementation behind it. Litmus: if the edge's artifact can merge as a <~100-line diff, it deserves its own node; a deep chain whose edges are all contracts is a compile error, not a schedule. Human gates get the same shape: a gate blocks the smallest swappable unit (value substitution into already-landed structure with placeholders), never the whole feature.
@@ -80,6 +80,8 @@ Epics of ~5+ units get COMPILED, not authored: human intent lives once at the ep
 - **The two human touchpoints stay legible, deliberately:** the epic intent paragraph and PR descriptions. The merge gate is a human (H6: it is the true throughput ceiling) — making PRs harder to review SLOWS the system; everything between those two touchpoints is structured data.
 
 **The graph lives as data where the substrate can compute it; the manifest carries the remainder.** Preferred: deps as substrate relations with a computed runnable flag, so the frontier is a live query — no manifest parsing, no drift between manifest and row status (Notion mechanics in the Notion claim protocol section; Linear has no computed frontier yet, so the full manifest stays authoritative there). The epic manifest then carries only what properties can't hold: `edge-data` labels, write-set globs, and shared constraints. **Frontier loop:** frontier = unclaimed nodes whose deps (including gate nodes) are all RELEASED → claim per the claim protocol → execute → release. Multiple directors drain the same frontier with zero coordination beyond claims, because in-wave write-set disjointness was guaranteed at compile time. **The frontier is only correct at read time: re-check it (live view, or manifest re-read where the manifest is authoritative) immediately before EACH claim, never once per session** — a frontier computed from stale state can start a node whose spec was since replanned. The pre-flight shared-constraints check (above) runs as part of compilation, never as mid-batch discovery.
+
+**Release semantics: merge releases contracts, not behavior (2026-07-27).** A CONTRACT edge releases when the upstream node merges — the fast gates (typecheck, targeted tests) are its verifier, so dependents proceed immediately and post-merge behavior tweaks can't invalidate what they consumed. A BEHAVIOR edge never releases at merge: when a unit's `verify:` anchors are environment-bound (deployed env, device simulator, seeded DB — the sandbox constraint that defers QA past merge), compilation emits the deferred verification as its own VERIFY NODE blocking the behavior-dependents — above all, the irreversible step (launch, deploy, publication) sits downstream of the verify node, and temporal gates (start dates) must leave room for it to run and for its findings to land. Deferral is only ever for environment-bound anchors — anything runnable locally still runs pre-merge, and the money/auth/migration pre-merge exception is untouched. Fast merge and correct blocking stop competing once verification debt is a visible node instead of a follow-up hope. **Post-merge defects are append-only:** never flip a released node back to not-done (breaks in-flight claims and the audit trail) — a contract-preserving fix is a new small node; a contract-breaking fix is a REPLAN that inserts a repair node as a new dependency of the affected dependents, with their holders notified on the message bus.
 
 **Replan rule:** the moment reality diverges from a spec (wrong schema assumption, discovered constraint), the discovering director posts `🔄 REPLAN <agent> · <date>` on the epic and recompiles the DOWNSTREAM untouched subgraph — claimed/in-flight work is preserved, only unstarted nodes get rewritten, and the manifest is updated in the same pass. **The REPLAN comment is itself a claim on the manifest** (same race discipline as issue claims): post it FIRST, re-read the thread, earliest timestamp wins; a concurrent loser folds its divergence report into the winner's recompile as a comment instead of writing a second manifest. A stale manifest is the anchor-less-graph failure mode: internally consistent, verified against nothing.
 
@@ -180,9 +182,18 @@ Notion; this section is the summary directors carry between sessions.
   labels, write-set globs, and shared constraints.
 - **Leaves never touch the database** — claims are director-level judgment;
   enforced by never giving leaf prompts Notion access.
-- **Scope:** unchanged — voidpet code work stays on GitHub Issues, Linear
-  keeps its own claim protocol and board. Claims scope ownership, not
-  authority: Mike remains final approver on merges.
+- **Scope (widened 2026-07-27, Mike-directed):** ALL voidpet-poc work — every
+  employee and every agent — is tracked on the Agent Tasks board; GitHub
+  Issues is legacy there (work existing issues to closure, open no new ones).
+  The board's value is universal adoption: an untracked task is invisible
+  verification debt, and an undeclared writer breaks write-set disjointness.
+  Humans claim by setting Agent = `human-only` plus themselves in the `Owner`
+  people property — the standing human-only rule then protects their rows
+  from every agent. Enforcement for agents is repo-level: voidpet-poc's
+  AGENTS.md carries the board rule, so every session in that repo loads it
+  regardless of whose machine it runs on. UTC work stays on Linear with its
+  own claim protocol. Claims scope ownership, not authority: Mike remains
+  final approver on merges.
 
 ## Runtime adapters
 
