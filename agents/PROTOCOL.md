@@ -136,7 +136,7 @@ Multiple directors (Claude/Fable sessions, k3-seated sessions, Codex/ChatGPT ses
 **How to claim:** set your label AND post a `🔒 CLAIM` comment (format below) — the comment is the audit trail and race tiebreaker. After claiming, re-read the issue: if another director's CLAIM landed concurrently, the earlier comment timestamp wins; the loser removes its label and posts a yield.
 
 **Comment message bus** — structured first line so any agent can parse issue state at a glance; free-form body below it:
-- `🔒 CLAIM <agent> · <date>` — plus branch/worktree and a one-line plan
+- `🔒 CLAIM <agent> · <date>` — plus branch/worktree and a one-line plan. Substrate note (2026-07-28): if the holder is an unattended remote/cloud runner, say so here and in STATUS lines with the run handle (e.g. "via cloud routine trig_…" / "Codex Cloud task …") — substrate NEVER gets its own `agent:*` label; the label group stays lane-only
 - `📍 STATUS <agent> · <date>` — checkpoint: branch, commits pushed, what's verified, next step. Post at minimum at every session end while holding a claim — an issue with no STATUS trail looks stale and invites takeover.
 - `🚧 BLOCKED <agent> · <date>` — why + what would unblock; an explicit standing invitation for takeover
 - `🤝 HANDOFF <from> → <to> · <date>` — voluntary transfer with full context dump
@@ -189,6 +189,9 @@ Notion; this section is the summary directors carry between sessions.
   this replaces manifest re-parsing on this substrate. `Lane` and `Wave` are
   properties set at compile time; the epic manifest keeps only edge-data
   labels, write-set globs, and shared constraints.
+- **Substrate note (2026-07-28):** same rule as Linear — an unattended
+  remote/cloud runner states it in its 🔒 CLAIM / 📍 STATUS comments with the
+  run handle; the Agent select stays lane-only.
 - **Leaves never touch the database** — claims are director-level judgment;
   enforced by never giving leaf prompts Notion access.
 - **Scope (widened 2026-07-27, Mike-directed):** ALL voidpet-poc work — every
