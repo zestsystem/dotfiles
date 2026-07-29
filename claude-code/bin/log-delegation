@@ -12,13 +12,24 @@ EXECUTORS="haiku sonnet sonnet-explore opus opus-5 opus-explore fable k3 codex-g
 CATS="coding/back-end coding/front-end-web coding/front-end-mobile coding/infra exploration writing"
 line="$1"
 echo "$line" | jq -e . > /dev/null || { echo "REJECTED: not valid JSON" >&2; exit 1; }
+# Date hygiene (2026-07-28: log carried future-dated lines from UTC-clock callers, and task=null lines):
+# default a missing date to the LOCAL machine date; reject dates in the future.
+today=$(date +%F)
+line=$(echo "$line" | jq -c --arg d "$today" 'if (.date // "") == "" then .date = $d else . end')
+d=$(echo "$line" | jq -r '.date')
+[[ "$d" > "$today" ]] && { echo "REJECTED: date '$d' is in the future — use the local machine date ($today), not UTC" >&2; exit 1; }
 ex=$(echo "$line" | jq -r '.executor // empty')
 cat_=$(echo "$line" | jq -r '.cat // empty')
 ext=$(echo "$line" | jq -r '.ext_tokens // "null"')
+task=$(echo "$line" | jq -r '.task // empty')
 if [ -n "$ex" ]; then
   echo " $EXECUTORS " | grep -q " $ex " || { echo "REJECTED: executor '$ex' not in canon: $EXECUTORS" >&2; exit 1; }
   echo " $CATS " | grep -q " $cat_ " || { echo "REJECTED: cat '$cat_' not in canon: $CATS" >&2; exit 1; }
-  case "$ex" in codex-*) [ "$ext" = "1" ] && { echo "REJECTED: ext_tokens=1 is a placeholder — use the real codex usage-footer count or null" >&2; exit 1; };; esac
+  { [ -z "$task" ] || [ "$task" = "null" ]; } && { echo "REJECTED: task is missing/null — the log is the queryable record; name the task" >&2; exit 1; }
+  case "$ex" in codex-*)
+    [ "$ext" = "1" ] && { echo "REJECTED: ext_tokens=1 is a placeholder — use the real codex usage-footer count or null" >&2; exit 1; }
+    [ "$ext" = "0" ] && { echo "REJECTED: ext_tokens=0 on a codex lane is a placeholder — use the real usage-footer count, or null if genuinely unavailable" >&2; exit 1; }
+  ;; esac
   echo "$line" | jq -e 'has("taste")' > /dev/null || echo "WARN: missing taste score (required since 2026-07-06)" >&2
 fi
 echo "$line" >> "$LOG" && echo "logged"
