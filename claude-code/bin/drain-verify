@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# drain-verify — drain the deferred-verification queue written by defer-verify. Runs nightly via
+# launchd, and opportunistically whenever a director notices the blocking resource freeing up.
+#
+# For each pending entry: run its precheck (skip entry if the resource is still busy), then run the
+# anchor SEQUENTIALLY (local-substrate rule: one heavy verifier at a time). Pass -> status=done;
+# fail -> stays pending with fails+1. Every outcome is appended to the day's report for the morning
+# report to ingest. Entries' `run` commands must be self-contained (bring their own env, e.g.
+# `direnv exec . just ...`).
+#
+# Usage: drain-verify [--dry-run]
+set -uo pipefail
+Q="${VERIFY_DEBT:-$HOME/.claude/verify-debt.jsonl}"
+REPORT_DIR="${VERIFY_DEBT_REPORTS:-$HOME/.claude/verify-debt-reports}"
+LOCK="$Q.lock"
+DRY="${1:-}"
+[ -s "$Q" ] || { echo "drain-verify: queue empty"; exit 0; }
+mkdir -p "$REPORT_DIR"
+REPORT="$REPORT_DIR/$(date +%F).log"
+
+mkdir "$LOCK" 2>/dev/null || { echo "drain-verify: another drain holds $LOCK — exiting"; exit 0; }
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+note() { echo "$(date +%FT%T%z) $*" | tee -a "$REPORT"; }
+
+ran=0; passed=0; failed=0; skipped=0
+for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
+  entry=$(jq -c --arg id "$id" 'select(.id==$id)' "$Q" | head -1)
+  cwd=$(echo "$entry" | jq -r .cwd)
+  runcmd=$(echo "$entry" | jq -r .run)
+  precheck=$(echo "$entry" | jq -r .precheck)
+  entnote=$(echo "$entry" | jq -r .note)
+
+  if [ ! -d "$cwd" ]; then
+    note "STALE   $id ($entnote): cwd gone ($cwd) — marking stale, needs re-queue against a live worktree"
+    newstatus="stale"
+  elif [ -n "$precheck" ] && ! (cd "$cwd" && bash -c "$precheck" >/dev/null 2>&1); then
+    note "BUSY    $id ($entnote): precheck says resource not free — skipping this drain"
+    skipped=$((skipped+1)); continue
+  elif [ "$DRY" = "--dry-run" ]; then
+    note "DRY     $id ($entnote): would run: $runcmd"
+    continue
+  else
+    ran=$((ran+1))
+    log="$REPORT_DIR/$id.out"
+    if (cd "$cwd" && bash -c "$runcmd" >"$log" 2>&1); then
+      passed=$((passed+1)); newstatus="done"
+      note "PASS    $id ($entnote)"
+    else
+      failed=$((failed+1)); newstatus="pending"
+      note "FAIL    $id ($entnote): anchor red — output in $log; stays queued"
+    fi
+  fi
+
+  tmp=$(mktemp)
+  jq -c --arg id "$id" --arg st "$newstatus" --arg ts "$(date +%FT%T%z)" \
+     'if .id==$id then .status=$st | .last_run=$ts | (if $st=="pending" then .fails+=1 else . end) else . end' \
+     "$Q" > "$tmp" && mv "$tmp" "$Q"
+done
+
+note "SUMMARY ran=$ran passed=$passed failed=$failed skipped=$skipped pending_left=$(jq -rs '[.[]|select(.status=="pending")]|length' "$Q")"
+[ "$failed" -eq 0 ]

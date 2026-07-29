@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# leaf-sweep — reconcile the leaf registry (see leaf-run): which launches never completed, and are they alive?
+# Run at session start (feeds the 🚧 INTERRUPTED sweep), before logout/shutdown (login-session mortality
+# check), and after bash-lane fan-outs (the mechanical form of the fan-in guard).
+#
+# Output: one line per unresolved start — RUNNING (pid alive) or DEAD (INTERRUPTED candidate: post the
+# bus comment, then `leaf-sweep --ack <run-id>` to clear it). Exit 1 if any DEAD entries remain.
+#
+# Usage: leaf-sweep            # report
+#        leaf-sweep --ack <run-id> [reason]   # mark a dead entry acknowledged (after posting INTERRUPTED)
+set -uo pipefail
+REG="${LEAF_REGISTRY:-$HOME/.claude/leaf-registry.jsonl}"
+[ -s "$REG" ] || { echo "leaf-sweep: registry empty — nothing in flight"; exit 0; }
+
+if [ "${1:-}" = "--ack" ]; then
+  run="${2:?usage: leaf-sweep --ack <run-id> [reason]}"; reason="${3:-interrupted-acked}"
+  jq -cn --arg ev end --arg run "$run" --arg ts "$(date +%FT%T%z)" --arg reason "$reason" \
+        '{ev:$ev,run:$run,ts:$ts,rc:"acked",reason:$reason}' >> "$REG"
+  echo "acked $run"; exit 0
+fi
+
+dead=0; running=0
+while IFS=$'\t' read -r run pid issue lane cwd ts; do
+  if kill -0 "$pid" 2>/dev/null; then
+    running=$((running+1))
+    echo "RUNNING  run=$run pid=$pid issue=$issue lane=$lane since=$ts cwd=$cwd"
+  else
+    dead=$((dead+1))
+    echo "DEAD     run=$run pid=$pid issue=$issue lane=$lane since=$ts cwd=$cwd  -> INTERRUPTED candidate (post bus comment, then: leaf-sweep --ack $run)"
+  fi
+done < <(jq -rs '
+  ([.[] | select(.ev=="end") | .run]) as $done
+  | .[] | select(.ev=="start") | select([.run] | inside($done) | not)
+  | [.run, (.pid|tostring), .issue, .lane, .cwd, .ts] | @tsv' "$REG")
+
+echo "leaf-sweep: $running running, $dead dead-unresolved"
+[ "$dead" -eq 0 ]

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# leaf-run — ledger wrapper for bash-launched leaf agents (codex exec, headless claude/kimi wrappers).
+# Records launch + completion in the machine-local registry so leaf liveness is a query, not a memory
+# (PROTOCOL.md "Leaf run ledger"). Harness-tracked subagents (Agent tool) skip this — the harness ledgers them.
+#
+# Usage: leaf-run --issue <id> --lane <lane> [--expect "<expected output>"] -- <command...>
+# Pair with: leaf-sweep (reconcile starts vs completions; INTERRUPTED candidates = dead PID, no end event).
+set -uo pipefail
+REG="${LEAF_REGISTRY:-$HOME/.claude/leaf-registry.jsonl}"
+issue="" lane="" expect=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --issue)  issue="$2"; shift 2 ;;
+    --lane)   lane="$2"; shift 2 ;;
+    --expect) expect="$2"; shift 2 ;;
+    --) shift; break ;;
+    *) echo "leaf-run: unknown arg '$1' (args go before --, command after)" >&2; exit 2 ;;
+  esac
+done
+[ $# -gt 0 ] || { echo "usage: leaf-run --issue <id> --lane <lane> [--expect <output>] -- <cmd...>" >&2; exit 2; }
+
+"$@" &
+pid=$!
+run="$(date +%s)-$pid"
+jq -cn --arg ev start --arg run "$run" --arg ts "$(date +%FT%T%z)" --argjson pid "$pid" \
+      --arg issue "$issue" --arg lane "$lane" --arg expect "$expect" --arg cwd "$PWD" --arg cmd "$*" \
+      '{ev:$ev,run:$run,ts:$ts,pid:$pid,issue:$issue,lane:$lane,expect:$expect,cwd:$cwd,cmd:$cmd}' >> "$REG"
+
+wait "$pid"
+rc=$?
+jq -cn --arg ev end --arg run "$run" --arg ts "$(date +%FT%T%z)" --argjson rc "$rc" \
+      '{ev:$ev,run:$run,ts:$ts,rc:$rc}' >> "$REG"
+exit "$rc"

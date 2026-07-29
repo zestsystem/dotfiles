@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# claim-marker — git-visible claim fallback (PROTOCOL.md "Tracker-down fallback"). When the tracker is
+# unreachable (or for overnight/unattended queues), the claim must be visible in git: an empty branch
+# `claim/<issue-id>-<agent>` at the default branch head. Markers are claims, not code — never commit to them.
+#
+# Usage (run inside any worktree of the repo):
+#   claim-marker set   <issue-id>     # push marker branch (fails loudly if any ref already mentions the id)
+#   claim-marker clear <issue-id>     # delete your marker branch
+#   claim-marker check <issue-id>     # list every remote ref mentioning the id (the pre-claim check)
+set -euo pipefail
+AGENT="${AGENT_NAME:-claude}"
+cmd="${1:?usage: claim-marker set|clear|check <issue-id>}"
+id="${2:?usage: claim-marker set|clear|check <issue-id>}"
+id_lc=$(echo "$id" | tr '[:upper:]' '[:lower:]')
+marker="claim/${id_lc}-${AGENT}"
+
+case "$cmd" in
+  check)
+    hits=$(git ls-remote origin | grep -i "$id_lc" || true)
+    if [ -n "$hits" ]; then echo "$hits"; echo "claim-marker: remote refs mention $id — treat as possibly in flight"; exit 1
+    else echo "claim-marker: no remote refs mention $id"; fi
+    ;;
+  set)
+    hits=$(git ls-remote origin | grep -i "$id_lc" || true)
+    if [ -n "$hits" ]; then
+      echo "$hits" >&2
+      echo "claim-marker: refusing to set — remote refs already mention $id (someone may be in flight)" >&2
+      exit 1
+    fi
+    defref=$(git ls-remote --symref origin HEAD | awk '/^ref:/ {print $2}')
+    sha=$(git ls-remote origin "$defref" | cut -f1)
+    [ -n "$sha" ] || { echo "claim-marker: could not resolve origin default branch" >&2; exit 1; }
+    git push origin "$sha:refs/heads/$marker"
+    echo "claim-marker: set $marker at $sha"
+    ;;
+  clear)
+    git push origin --delete "$marker"
+    echo "claim-marker: cleared $marker"
+    ;;
+  *) echo "claim-marker: unknown command '$cmd'" >&2; exit 2 ;;
+esac

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# defer-verify — queue a verification anchor deferred past merge (slot exhaustion, missing simulator
+# stack, env-bound gate). PROTOCOL.md: "deferred anchors are queued, never remembered" — a deferral
+# without a queue entry is a protocol violation. drain-verify drains the queue when resources free up.
+#
+# Usage: defer-verify --note "<ISSUE-ID what>" --cwd <dir> --run '<anchor command>' \
+#                     [--precheck '<cmd exiting 0 when the blocking resource is free>']
+# Omitted --precheck means "always runnable" (drain will just try it).
+set -euo pipefail
+Q="${VERIFY_DEBT:-$HOME/.claude/verify-debt.jsonl}"
+note="" cwd="" runcmd="" precheck=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --note)     note="$2"; shift 2 ;;
+    --cwd)      cwd="$2"; shift 2 ;;
+    --run)      runcmd="$2"; shift 2 ;;
+    --precheck) precheck="$2"; shift 2 ;;
+    *) echo "defer-verify: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
+[ -n "$note" ] && [ -n "$cwd" ] && [ -n "$runcmd" ] || {
+  echo "usage: defer-verify --note '<ISSUE-ID what>' --cwd <dir> --run '<cmd>' [--precheck '<cmd>']" >&2; exit 2; }
+[ -d "$cwd" ] || { echo "defer-verify: cwd '$cwd' does not exist" >&2; exit 2; }
+id="$(date +%s)-$$"
+jq -cn --arg id "$id" --arg ts "$(date +%FT%T%z)" --arg note "$note" --arg cwd "$cwd" \
+      --arg run "$runcmd" --arg precheck "$precheck" \
+      '{id:$id,ts:$ts,note:$note,cwd:$cwd,run:$run,precheck:$precheck,status:"pending",fails:0}' >> "$Q"
+echo "queued $id: $note"
