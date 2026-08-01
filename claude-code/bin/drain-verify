@@ -52,6 +52,11 @@ for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
     fi
   fi
 
+  # Settle delay: e2e/dev-stack teardown from the entry just run winds down asynchronously;
+  # without a pause the NEXT entry's pgrep-based precheck sees the dying processes and
+  # false-BUSY skips (2026-08-01: 2 entries skipped 1s after a PASS).
+  [ "${newstatus:-}" = "done" ] || [ "${newstatus:-}" = "pending" ] && sleep 20
+
   tmp=$(mktemp)
   jq -c --arg id "$id" --arg st "$newstatus" --arg ts "$(date +%FT%T%z)" \
      'if .id==$id then .status=$st | .last_run=$ts | (if $st=="pending" then .fails+=1 else . end) else . end' \
