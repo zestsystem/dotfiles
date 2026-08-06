@@ -19,6 +19,20 @@ if [ "${1:-}" = "--ack" ]; then
   echo "acked $run"; exit 0
 fi
 
+# Concurrent leaf-run appends from multiple directors can tear a line (two objects concatenated with no
+# newline between them). A whole-file `jq -s` dies on the first such line and emits NOTHING — which the
+# loop below reads as "0 running, 0 dead", i.e. a silent all-clear while leaves are actually in flight.
+# That is the exact failure the fan-in guard exists to catch, so parse tolerantly: split glued objects
+# back apart, skip anything still unparseable, and say so loudly rather than under-reporting.
+events="$(sed 's/}{/}\
+{/g' "$REG" | jq -cR 'fromjson? // empty')"
+raw_count=$(sed 's/}{/}\
+{/g' "$REG" | grep -c . || true)
+ok_count=$(printf '%s\n' "$events" | grep -c . || true)
+if [ "$ok_count" -lt "$raw_count" ]; then
+  echo "leaf-sweep: WARNING — $((raw_count - ok_count)) unparseable line(s) in $REG; reconciliation may be INCOMPLETE (verify in-flight leaves with ps before synthesizing)" >&2
+fi
+
 dead=0; running=0
 while IFS=$'\t' read -r run pid issue lane cwd ts; do
   if kill -0 "$pid" 2>/dev/null; then
@@ -28,10 +42,10 @@ while IFS=$'\t' read -r run pid issue lane cwd ts; do
     dead=$((dead+1))
     echo "DEAD     run=$run pid=$pid issue=$issue lane=$lane since=$ts cwd=$cwd  -> INTERRUPTED candidate (post bus comment, then: leaf-sweep --ack $run)"
   fi
-done < <(jq -rs '
+done < <(printf '%s\n' "$events" | jq -rs '
   ([.[] | select(.ev=="end") | .run]) as $done
   | .[] | select(.ev=="start") | select([.run] | inside($done) | not)
-  | [.run, (.pid|tostring), .issue, .lane, .cwd, .ts] | @tsv' "$REG")
+  | [.run, (.pid|tostring), .issue, .lane, .cwd, .ts] | @tsv')
 
 echo "leaf-sweep: $running running, $dead dead-unresolved"
 [ "$dead" -eq 0 ]
