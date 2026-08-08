@@ -326,3 +326,11 @@ Notion; this section is the summary directors carry between sessions.
   ```
   Triggers: Mike asks, or pre-PR on substantial/user-facing diffs. It is metered spend (~$1–5/consult): log it, and it counts against the monthly Fable budget guardrail in the scorecard. No other Claude CLI use from this runtime — no multi-turn sessions, no implementation hand-offs.
 - When a task exceeds this lane's depth (repeat failures, verify≈solve territory, architecture-level ambiguity), stop and recommend Mike take it to a Fable session — don't grind, and don't try to simulate one via chained consults.
+
+## Standing operational grants (Mike, 2026-08-08 — all directors; audit trail mandatory per grant)
+- **G1 Stripe webhook event alignment:** add/remove EVENT subscriptions on the two existing UTC webhook endpoints (stg+prd) ONLY to match the repo gate's code-derived required list (the gate's "missing/extra" diff IS the authorization). Never: endpoint create/delete, signing secrets, keys, payouts, capabilities, or any other Stripe setting. Audit: bus comment naming endpoint, event, and the demanding gate run.
+- **G2 Failed-deploy-job reruns:** rerun any failed CI/deploy job once its blocking condition verifiably cleared. No new deploy surface — only completing already-cut pipelines. Audit: run links in session status.
+- **G3 Vendor CI-resource hygiene:** sweep vendor-side resources with CI naming conventions AND dead provenance (PlanetScale ci-* branches/passwords with inactive runs; wedged/superseded GH workflow-run cancellations). Never: main/staging/named-dev branches or anything lacking both conditions. Audit: log each deletion with the deadness proof.
+- **G4 CI workflow tuning within the fixed menu:** runner sizes among approved Blacksmith tiers, timeout re-baselines WITH measured basis in the diff, concurrency/paths-filter adjustments — via normal PRs, ask-free. Never anything that changes what gates VERIFY.
+- **G5 (host) NOPASSWD sudoers for exactly `xcode-select --switch`** — Mike installs the sudoers line; directors may then run it for mobile-QA host repair. No other sudo, ever.
+- Linear access: durable API token lives in Doppler project `linear` — the OAuth-connector-decay fallback of record (never print the token).
