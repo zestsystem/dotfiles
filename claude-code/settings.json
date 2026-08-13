@@ -34,7 +34,8 @@
   "enabledPlugins": {
     "playwright@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "figma@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
