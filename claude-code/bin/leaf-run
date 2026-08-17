@@ -22,9 +22,16 @@ done
 "$@" &
 pid=$!
 run="$(date +%s)-$pid"
+# Fields are TRUNCATED on purpose (2026-08-17 repair): $* carries the whole leaf prompt, which made
+# start records ~47KB. An append that large is no longer a single atomic write, so a concurrent
+# leaf-run interleaved into one and left two unparseable lines — degrading leaf-sweep, the fan-in
+# guard's mechanical half, to "reconciliation may be INCOMPLETE". Records stay small enough to append
+# atomically; the ledger's job is liveness pairing, and the full prompt lives in the leaf's own log.
 jq -cn --arg ev start --arg run "$run" --arg ts "$(date +%FT%T%z)" --argjson pid "$pid" \
       --arg issue "$issue" --arg lane "$lane" --arg expect "$expect" --arg cwd "$PWD" --arg cmd "$*" \
-      '{ev:$ev,run:$run,ts:$ts,pid:$pid,issue:$issue,lane:$lane,expect:$expect,cwd:$cwd,cmd:$cmd}' >> "$REG"
+      '{ev:$ev,run:$run,ts:$ts,pid:$pid,issue:$issue,lane:$lane,
+        expect:($expect[0:400]),cwd:$cwd,cmd:($cmd[0:800]),
+        truncated:(($expect|length)>400 or ($cmd|length)>800)}' >> "$REG"
 
 wait "$pid"
 rc=$?
