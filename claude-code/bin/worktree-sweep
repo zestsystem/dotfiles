@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# worktree-sweep — reclaim disk from finished worktrees WITHOUT destroying unrecoverable state.
+# Implements the standing bloat-cleanup grant mechanically (PROTOCOL.md "QA/dev resource lifecycle"
+# + the scar-to-gate rule): a sweep every director hand-rolled, so the same loss kept recurring.
+#
+# A worktree is swept only when ALL hold:
+#   1. its HEAD is an ancestor of origin/main (merged — nothing unmerged can be lost),
+#   2. no live process is cwd'd inside it,
+#   3. its last commit is older than --days (default 14),
+#   4. its path matches no --keep pattern.
+#
+# Before removal BOTH kinds of local state are archived under ~/.claude/worktree-archive/<date>/:
+#   <name>.patch    tracked uncommitted diff (git diff HEAD)
+#   <name>.status   porcelain status (the file inventory)
+#   <name>.untracked.tar.gz   CONTENTS of untracked files
+# That last one is the whole point. Two field losses came from archiving the diff only:
+# 2026-08-09 a leaf's only copy of a verify recipe (reconstructed by hand) and 2026-08-17
+# (22 never-committed source files from abandoned months-old worktrees). Untracked != worthless:
+# leaf reports, verify recipes, and new files a leaf never committed all live there.
+#
+# Usage (from any worktree of the repo):
+#   worktree-sweep --dry-run                 # classify only; prints what WOULD go and what is kept, and why
+#   worktree-sweep                           # sweep with defaults (14 days)
+#   worktree-sweep --days 30 --keep 'verify-pin|some-active-branch'
+set -uo pipefail
+
+DAYS=14; DRY=0; KEEP_EXTRA=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY=1; shift ;;
+    --days) DAYS="${2:?--days needs a value}"; shift 2 ;;
+    --keep) KEEP_EXTRA="${2:?--keep needs a pattern}"; shift 2 ;;
+    *) echo "worktree-sweep: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
+
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "worktree-sweep: not inside a git repo" >&2; exit 2; }
+git fetch origin main --quiet 2>/dev/null
+
+ARC="$HOME/.claude/worktree-archive/$(date +%F)"; mkdir -p "$ARC"
+CUT=$(date -v-"${DAYS}"d +%F 2>/dev/null || date -d "${DAYS} days ago" +%F)
+
+# Worktrees holding a live process are never swept: a running verifier/dev stack owns its tree.
+held=$(for p in $(ps -eo pid= 2>/dev/null); do
+         lsof -a -p "$p" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p'
+       done | sort -u)
+
+kept=0; swept=0; freed_before=$(df -k "$HOME" | tail -1 | awk '{print $4}')
+
+while IFS= read -r wt; do
+  [ -n "$wt" ] && [ -d "$wt" ] || continue
+  # the main/launch-pad worktree is permanent (it is where /code-review ultra and gates launch from)
+  case "$wt" in */main) echo "KEEP  $wt (launch-pad)"; kept=$((kept+1)); continue ;; esac
+  if [ -n "$KEEP_EXTRA" ] && echo "$wt" | grep -qE "$KEEP_EXTRA"; then
+    echo "KEEP  $wt (--keep)"; kept=$((kept+1)); continue
+  fi
+  if echo "$held" | grep -qF "$wt"; then
+    echo "KEEP  $wt (live process cwd'd inside)"; kept=$((kept+1)); continue
+  fi
+  head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || { echo "KEEP  $wt (unreadable HEAD)"; kept=$((kept+1)); continue; }
+  if ! git merge-base --is-ancestor "$head" origin/main 2>/dev/null; then
+    echo "KEEP  $wt (unmerged work)"; kept=$((kept+1)); continue
+  fi
+  last=$(git -C "$wt" log -1 --format=%cs "$head" 2>/dev/null)
+  if [ -z "$last" ] || [ "$last" \> "$CUT" ]; then
+    echo "KEEP  $wt (recent: $last > $CUT)"; kept=$((kept+1)); continue
+  fi
+
+  name=$(echo "$wt" | sed 's|^/||; s|/|_|g')
+  if [ "$DRY" = "1" ]; then
+    echo "SWEEP $wt (merged, last $last)  [dry-run]"; swept=$((swept+1)); continue
+  fi
+
+  # --- archive BOTH tracked and untracked state before anything is destroyed ---
+  # Redirect git's bytes straight to the file. Never `d=$(git diff)` + `printf '%s' "$d"`:
+  # command substitution strips the trailing newline, so every patch lands one byte short and
+  # `git apply` rejects the lot as "corrupt patch at <last line>" (2026-08-17: 38 archived
+  # patches were silently unrestorable until the newline was appended back).
+  git -C "$wt" diff HEAD > "$ARC/$name.patch" 2>/dev/null
+  [ -s "$ARC/$name.patch" ] || : > "$ARC/$name.patch"
+  git -C "$wt" status --porcelain > "$ARC/$name.status" 2>/dev/null
+  # untracked CONTENTS (respecting .gitignore, so build output/node_modules stay out of the archive)
+  if git -C "$wt" ls-files --others --exclude-standard -z 2>/dev/null | grep -qz .; then
+    git -C "$wt" ls-files --others --exclude-standard -z 2>/dev/null \
+      | tar --null -czf "$ARC/$name.untracked.tar.gz" -C "$wt" --files-from=- 2>/dev/null
+  fi
+
+  # Fail CLOSED: prove the archive is restorable before destroying the original. An unverified
+  # backup is not a backup — the 2026-08-17 truncation would have passed a "file exists" check.
+  # --reverse, not forward: the patch came FROM this tree, so the tree already contains it and a
+  # forward --check always fails (which would make the sweep a no-op on every dirty worktree).
+  # Reversing must apply cleanly, and a truncated/corrupt patch fails to parse in either direction,
+  # so this still catches the byte-short case it exists for.
+  if [ -s "$ARC/$name.patch" ] && ! git -C "$wt" apply --check --reverse "$ARC/$name.patch" 2>/dev/null; then
+    echo "KEEP  $wt (archived patch does not re-apply — refusing to destroy the original)"
+    kept=$((kept+1)); continue
+  fi
+  if [ -f "$ARC/$name.untracked.tar.gz" ] && ! tar tzf "$ARC/$name.untracked.tar.gz" >/dev/null 2>&1; then
+    echo "KEEP  $wt (untracked archive unreadable — refusing to destroy the original)"
+    kept=$((kept+1)); continue
+  fi
+
+  if git worktree remove --force "$wt" 2>/dev/null; then
+    echo "SWEEP $wt (merged, last $last) — archived to $ARC"; swept=$((swept+1))
+  else
+    echo "FAIL  $wt (git worktree remove refused)"; kept=$((kept+1))
+  fi
+done < <(git worktree list --porcelain | awk '/^worktree /{print $2}')
+
+[ "$DRY" = "1" ] || git worktree prune 2>/dev/null
+freed_after=$(df -k "$HOME" | tail -1 | awk '{print $4}')
+awk -v b="$freed_before" -v a="$freed_after" -v s="$swept" -v k="$kept" -v d="$DRY" \
+  'BEGIN{printf "worktree-sweep: swept=%d kept=%d%s reclaimed=%.1fGiB free=%.1fGiB\n", s, k, (d?" (dry-run)":""), (a-b)/1048576, a/1048576}'
+[ "$DRY" = "1" ] || echo "worktree-sweep: archive at $ARC (restore untracked: tar xzf <name>.untracked.tar.gz)"
