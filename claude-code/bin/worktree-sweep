@@ -4,7 +4,8 @@
 # + the scar-to-gate rule): a sweep every director hand-rolled, so the same loss kept recurring.
 #
 # A worktree is swept only when ALL hold:
-#   1. its HEAD is an ancestor of origin/main (merged — nothing unmerged can be lost),
+#   1. its work is already on origin/main — HEAD is an ancestor, OR the branch was squash-merged
+#      (its files are byte-identical on main, or a MERGED PR carries exactly this head sha),
 #   2. no live process is cwd'd inside it,
 #   3. its last commit is older than --days (default 14),
 #   4. its path matches no --keep pattern.
@@ -37,6 +38,44 @@ done
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "worktree-sweep: not inside a git repo" >&2; exit 2; }
 git fetch origin main --quiet 2>/dev/null
 
+# --- is this worktree's work already on main? -------------------------------------------------
+# `gh pr merge --squash` is this repo's only merge lane, and a squash rewrites the branch into ONE
+# new commit — so a finished branch's HEAD is never an ancestor of main. The ancestor test alone
+# therefore called practically every completed worktree "unmerged work" and swept nothing: UTC-2394
+# found 76 GiB parked in 30 trees, 19 of them belonging to PRs that had merged days or months
+# earlier. Two further tests, both exact, neither guessing.
+merged_reason() {   # $1=worktree $2=head -> prints why it counts as merged; silent when it does not
+  local wt="$1" head="$2" mb p a b identical br pr
+  if git merge-base --is-ancestor "$head" origin/main 2>/dev/null; then echo "merged"; return; fi
+
+  # (a) content containment, offline: every path the branch touched since its merge base is
+  #     byte-identical on origin/main right now. Catches the squash without asking GitHub anything.
+  #     When main has since moved past one of those files this stays silent and (b) decides — the
+  #     conservative direction, never the reverse.
+  mb=$(git merge-base origin/main "$head" 2>/dev/null)
+  if [ -n "$mb" ]; then
+    if git diff --quiet "$mb" "$head" 2>/dev/null; then echo "no commits of its own"; return; fi
+    identical=1
+    while IFS= read -r -d '' p; do
+      a=$(git rev-parse --verify -q "origin/main:$p" 2>/dev/null)
+      b=$(git rev-parse --verify -q "$head:$p" 2>/dev/null)
+      [ "$a" = "$b" ] || { identical=0; break; }
+    done < <(git diff -z --name-only "$mb" "$head" 2>/dev/null)
+    [ "$identical" = 1 ] && { echo "squash-merged (its files are byte-identical on main)"; return; }
+  fi
+
+  # (b) GitHub's own answer, taken only when it is unambiguous: a MERGED PR for this branch whose
+  #     merged head is EXACTLY this commit. That sha equality is the safety — any local commit made
+  #     after the merge moves HEAD, the shas stop matching, and the tree is kept. A CLOSED-unmerged
+  #     PR is abandoned work and deliberately does not qualify. No gh / no network: (a) decides alone.
+  br=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  [ -n "$br" ] && [ "$br" != HEAD ] || return
+  command -v gh >/dev/null 2>&1 || return
+  pr=$(gh pr list --head "$br" --state merged --limit 5 --json number,headRefOid \
+         --jq ".[]|select(.headRefOid==\"$head\")|.number" 2>/dev/null | head -1)
+  [ -n "$pr" ] && echo "merged as PR #$pr (squash; head sha matches)"
+}
+
 ARC="$HOME/.claude/worktree-archive/$(date +%F)"; mkdir -p "$ARC"
 CUT=$(date -v-"${DAYS}"d +%F 2>/dev/null || date -d "${DAYS} days ago" +%F)
 
@@ -58,7 +97,8 @@ while IFS= read -r wt; do
     echo "KEEP  $wt (live process cwd'd inside)"; kept=$((kept+1)); continue
   fi
   head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || { echo "KEEP  $wt (unreadable HEAD)"; kept=$((kept+1)); continue; }
-  if ! git merge-base --is-ancestor "$head" origin/main 2>/dev/null; then
+  why=$(merged_reason "$wt" "$head")
+  if [ -z "$why" ]; then
     echo "KEEP  $wt (unmerged work)"; kept=$((kept+1)); continue
   fi
   last=$(git -C "$wt" log -1 --format=%cs "$head" 2>/dev/null)
@@ -68,7 +108,7 @@ while IFS= read -r wt; do
 
   name=$(echo "$wt" | sed 's|^/||; s|/|_|g')
   if [ "$DRY" = "1" ]; then
-    echo "SWEEP $wt (merged, last $last)  [dry-run]"; swept=$((swept+1)); continue
+    echo "SWEEP $wt ($why, last $last)  [dry-run]"; swept=$((swept+1)); continue
   fi
 
   # --- archive BOTH tracked and untracked state before anything is destroyed ---
@@ -101,7 +141,7 @@ while IFS= read -r wt; do
   fi
 
   if git worktree remove --force "$wt" 2>/dev/null; then
-    echo "SWEEP $wt (merged, last $last) — archived to $ARC"; swept=$((swept+1))
+    echo "SWEEP $wt ($why, last $last) — archived to $ARC"; swept=$((swept+1))
   else
     echo "FAIL  $wt (git worktree remove refused)"; kept=$((kept+1))
   fi
