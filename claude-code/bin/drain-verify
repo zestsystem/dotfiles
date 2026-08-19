@@ -49,6 +49,19 @@ for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
     else
       failed=$((failed+1)); newstatus="pending"
       note "FAIL    $id ($entnote): anchor red — output in $log; stays queued"
+      # A failed `just e2e-isolated` run deliberately keeps its stack up for inspection
+      # (ports 8787/3000, PlanetScale branch, Redis lease, .e2e-isolated.json). Left alone it
+      # poisons every e2e entry after it in this drain — port collisions and dying-stack API
+      # errors recorded as anchor FAILs — fake evidence of real breakage. The runner's
+      # own clean recipe is the sanctioned teardown; guard on its state file so non-e2e entries
+      # are untouched, and never kill by name.
+      if [ -f "$cwd/.e2e-isolated.json" ]; then
+        if (cd "$cwd" && bash -c "direnv exec . just e2e-isolated-clean" >>"$log" 2>&1); then
+          note "RECLAIM $id: failed isolated stack torn down (e2e-isolated-clean exit 0)"
+        else
+          note "RECLAIM-FAILED $id: e2e-isolated-clean exited non-zero — inspect $log before the next e2e entry"
+        fi
+      fi
     fi
   fi
 
