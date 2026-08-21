@@ -14,6 +14,12 @@ Q="${VERIFY_DEBT:-$HOME/.claude/verify-debt.jsonl}"
 REPORT_DIR="${VERIFY_DEBT_REPORTS:-$HOME/.claude/verify-debt-reports}"
 LOCK="$Q.lock"
 DRY="${1:-}"
+# Strict flags: the queue is deep and many entries boot heavy stacks, so an unknown flag
+# (including --help) must never fall through into a real drain — print usage and exit.
+case "$DRY" in
+  ""|--dry-run) ;;
+  *) echo "usage: drain-verify [--dry-run]"; exit 2 ;;
+esac
 [ -s "$Q" ] || { echo "drain-verify: queue empty"; exit 0; }
 mkdir -p "$REPORT_DIR"
 REPORT="$REPORT_DIR/$(date +%F).log"
