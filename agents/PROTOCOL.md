@@ -37,6 +37,16 @@ Exists so a new/unfamiliar model can be evaluated on its own merits, unrouted �
 ### Dormant named regimes
 `fable-director` and `sol-first` were the `director` strategy with the seat pinned in the regime name; folded into the seat positions above 2026-07-19, nothing dropped. Original texts: git history of this file.
 
+## Multi-director parallel formation (baked 2026-08-21, Mike-directed — the STANDARD shape under a continuous-work grant)
+
+When Mike grants continuous work and asks to parallelize, the formation is **N full director-seat sessions as PEERS** (N=3 standard, 4 max locally), each an interactive session Mike opens, each on the CURRENT director seat (Fable-first per the seat ladder) — **never** a supervisor spawning headless plan-billed pseudo-directors (that degraded formation was rebuilt twice from memory and rejected twice; kicks lose seat depth, bill the same meter blind, and hide the work from Mike's session list). Rules:
+1. **Coordination is the claim protocol, nothing else** — no hierarchy, no supervisor process. Each director claims from the global frontier with a CLAIM comment + declared write-set; earliest claim wins; zones are routing defaults, never fences.
+2. **One director holds the release checkpoint at a time** (by claim, not rank) and runs the train protocol; the others hold migration merges during a pipeline and otherwise merge-fast.
+3. **Kickoff is one message**: whichever director is already running briefs a fresh session via SendMessage with — grant scope, claim-protocol pointer, current train/freeze state, the briefing director's own claims, a zone suggestion, and the Linear-access note (use the claude.ai connector tools; the stale `linear-server` MCP entry is a false-outage generator; GitHub-synced threads self-mirror). A fresh session with no brief reads this section and self-onboards.
+4. **Liveness under the grant** follows the grant-mode rules above (transcript-probe liveness, immediate takeover of a dead peer's claims, every director arms its own wake cadence).
+5. Each director still delegates its own leaves per the lane table below — director seats orchestrate; codex/opus-5 lanes execute.
+6. Capacity finding (2026-08-20): the binding constraints are the reviewing director's attention, the shared CI provisioning pool, the single SCM identity's API budget, and host RAM/DB-lock — not seat count. 3-4 directors, each fanning 1-3 leaves, is the local ceiling; wider goes to remote substrates.
+
 ## Delegation lanes (used by whichever model orchestrates)
 
 - **codex (gpt-5.6-sol)** — DEFAULT lane for delegated work EXCEPT frontend/UI, which is reserved for opus-5 below and has no automatic fallback. Bills the ChatGPT Pro meter, so it preserves the director's pool AND the Anthropic plan — weight it hardest under the `director` regime. Status: CONFIRMED (settled 2026-07-12 on 9 graded results all ≥B+, reinforced 2026-07-27 with a 10-task 8×A batch — scorecard); grade under versioned executors `codex-gpt-5.6-sol-low|high|xhigh`; `gpt-5.5` stays the named fallback under the standing demotion rule.
