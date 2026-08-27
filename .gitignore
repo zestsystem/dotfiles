@@ -23,3 +23,5 @@ configstore/**
 opencode/**
 voidpet-studio/**claude-code/bin/nightly-bao-sync.sh
 claude-code/bin/nightly-bao-sync.sh
+voidpet-studio/
+vp-secrets/
