@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# drain-review — drain the parked-PR queue written by defer-review. Runs on a cadence (launchd) and
+# opportunistically whenever a director has a moment; it is the RECEIVER that makes "queue the walled
+# review, never hold it" a real handoff instead of a hope.
+#
+# Per pending entry:
+#   merged/closed              -> done
+#   review posted since parking -> READY: a human/director disposition is owed (never auto-merges)
+#   PR went CONFLICTING         -> STALE: rebase owed; catches the 2026-08-28 rot-while-parked failure
+#   main moved into its files   -> DRIFT: warn before it becomes CONFLICTING
+#   still waiting               -> stays pending, checks+1
+#
+# Deliberately does NOT merge, comment, or re-request reviews: parking is a bookkeeping problem, and
+# an unattended drainer that could merge is a different and much riskier tool.
+#
+# Usage: drain-review [--dry-run]
+set -uo pipefail
+Q="${REVIEW_DEBT:-$HOME/.claude/review-debt.jsonl}"
+REPORT_DIR="${REVIEW_DEBT_REPORTS:-$HOME/.claude/review-debt-reports}"
+WAIT_BOUND_H="${REVIEW_WAIT_BOUND_H:-2}"   # docs/agents/coderabbit-review-protocol.md: never hold past ~2h
+LOCK="$Q.lock"
+DRY="${1:-}"
+case "$DRY" in
+  ""|--dry-run) ;;
+  *) echo "usage: drain-review [--dry-run]"; exit 2 ;;
+esac
+[ -s "$Q" ] || { echo "drain-review: queue empty"; exit 0; }
+mkdir -p "$REPORT_DIR"
+REPORT="$REPORT_DIR/$(date +%F).log"
+mkdir "$LOCK" 2>/dev/null || { echo "drain-review: another drain holds $LOCK — exiting"; exit 0; }
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+note() { echo "$(date +%FT%T%z) $*" | tee -a "$REPORT"; }
+tmp="$(mktemp)"; trap 'rmdir "$LOCK" 2>/dev/null; rm -f "$tmp"' EXIT
+
+ready=0; stale=0; done_n=0; waiting=0
+now_epoch=$(date +%s)
+
+for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
+  entry="$(jq -c --arg id "$id" 'select(.id==$id)' "$Q" | head -1)"
+  pr="$(echo "$entry"      | jq -r .pr)"
+  repo="$(echo "$entry"    | jq -r .repo)"
+  entnote="$(echo "$entry" | jq -r .note)"
+  reviewer="$(echo "$entry"| jq -r .reviewer)"
+  parked_sha="$(echo "$entry" | jq -r .parked_sha)"
+  parked_ts="$(echo "$entry"  | jq -r .ts)"
+  # Compare against GitHub's UTC stamps in UTC — a local-offset stamp compares wrong lexically.
+  parked_utc="$(echo "$entry" | jq -r '.ts_utc // ""')"
+  [ -n "$parked_utc" ] || parked_utc="$(date -u -j -f "%Y-%m-%dT%H:%M:%S%z" "$parked_ts" +%FT%TZ 2>/dev/null || echo "$parked_ts")"
+
+  if [ ! -d "$repo" ]; then
+    note "STALE   #$pr ($entnote): repo dir gone ($repo) — marking stale"
+    jq -c --arg id "$id" 'if .id==$id then .status="stale" else . end' "$Q" > "$tmp" && mv "$tmp" "$Q"
+    continue
+  fi
+
+  meta="$(cd "$repo" && gh pr view "$pr" --json state,mergeable,headRefOid,reviews,comments 2>/dev/null)" || meta=""
+  if [ -z "$meta" ]; then
+    note "ERROR   #$pr ($entnote): could not read PR (gh/network) — stays queued"
+    waiting=$((waiting+1)); continue
+  fi
+
+  state="$(echo "$meta" | jq -r .state)"
+  mergeable="$(echo "$meta" | jq -r .mergeable)"
+
+  if [ "$state" != "OPEN" ]; then
+    note "DONE    #$pr ($entnote): state=$state"
+    done_n=$((done_n+1))
+    [ "$DRY" = "--dry-run" ] || { jq -c --arg id "$id" 'if .id==$id then .status="done" else . end' "$Q" > "$tmp" && mv "$tmp" "$Q"; }
+    continue
+  fi
+
+  # Did the reviewer post anything after we parked? Reviews AND issue comments both count — CodeRabbit
+  # posts its substantive body as a comment, and a green status is never evidence (PROTOCOL.md).
+  posted="$(echo "$meta" | jq -r --arg who "$reviewer" --arg since "$parked_utc" '
+    [ (.reviews[]? | {a:(.author.login // ""), t:.submittedAt}),
+      (.comments[]? | {a:(.author.login // ""), t:.createdAt}) ]
+    | map(select((.a | ascii_downcase | contains($who | ascii_downcase)) and .t > $since))
+    | length')"
+
+  if [ "${posted:-0}" -gt 0 ]; then
+    note "READY   #$pr ($entnote): $reviewer posted $posted item(s) since parking — DISPOSITION OWED (fix or refute on the thread, then merge per the gate)"
+    ready=$((ready+1))
+    [ "$DRY" = "--dry-run" ] || { jq -c --arg id "$id" 'if .id==$id then .status="ready" else . end' "$Q" > "$tmp" && mv "$tmp" "$Q"; }
+    continue
+  fi
+
+  if [ "$mergeable" = "CONFLICTING" ]; then
+    note "STALE   #$pr ($entnote): went CONFLICTING while parked — rebase owed before any further wait"
+    stale=$((stale+1))
+    [ "$DRY" = "--dry-run" ] || { jq -c --arg id "$id" 'if .id==$id then .status="stale" else . end' "$Q" > "$tmp" && mv "$tmp" "$Q"; }
+    continue
+  fi
+
+  born="$(date -j -f "%Y-%m-%dT%H:%M:%S%z" "${parked_ts}" +%s 2>/dev/null || echo 0)"
+  age_h=$(( born > 0 ? (now_epoch - born) / 3600 : 0 ))
+  head_now="$(echo "$meta" | jq -r .headRefOid)"
+  moved=""; [ "$head_now" != "$parked_sha" ] && moved=" (head moved ${parked_sha:0:7}->${head_now:0:7} — a re-request on the final head is owed)"
+
+  if [ "$age_h" -ge "$WAIT_BOUND_H" ]; then
+    note "BOUND   #$pr ($entnote): parked ${age_h}h with no $reviewer review — past the ${WAIT_BOUND_H}h bound; take the recorded-skip path and proceed on the remaining gates$moved"
+    stale=$((stale+1))
+  else
+    note "WAIT    #$pr ($entnote): ${age_h}h parked, no review yet$moved"
+    waiting=$((waiting+1))
+  fi
+  [ "$DRY" = "--dry-run" ] || { jq -c --arg id "$id" 'if .id==$id then .checks=((.checks//0)+1) | .last_check="'"$(date +%FT%T%z)"'" else . end' "$Q" > "$tmp" && mv "$tmp" "$Q"; }
+done
+
+note "SUMMARY ready=$ready stale=$stale done=$done_n waiting=$waiting"
+if [ $((ready + stale)) -gt 0 ]; then
+  osascript -e "display notification \"$ready ready for disposition, $stale stale/past-bound — see review-debt reports\" with title \"drain-review\"" >/dev/null 2>&1 || true
+fi
+exit 0

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# defer-review — park a PR that is waiting on a review slot (or any bounded external wait) so a
+# DRAINER owns the re-check, not a held session and not a peer's memory.
+#
+# Why: PROTOCOL.md says a walled review is queued, never held — but "queued" only means something if
+# there is a queue with a drainer. On 2026-08-28 a walled PR's handoff was a cross-session message
+# that silently sat unapproved and never arrived; nobody re-checked, and the PR went CONFLICTING
+# behind ~18 commits. A message to a peer session is not a handoff. This queue is.
+#
+# Usage: defer-review --pr <number> --repo <dir> --note "<why it is parked / what to do on wake>"
+#                     [--reviewer coderabbitai]
+# drain-review drains it: merged/closed -> done; review posted -> surfaced for disposition;
+# gone CONFLICTING or blocked past the wait bound -> escalated.
+set -euo pipefail
+Q="${REVIEW_DEBT:-$HOME/.claude/review-debt.jsonl}"
+pr="" repo="" note="" reviewer="coderabbitai"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --pr)       pr="$2";       shift 2 ;;
+    --repo)     repo="$2";     shift 2 ;;
+    --note)     note="$2";     shift 2 ;;
+    --reviewer) reviewer="$2"; shift 2 ;;
+    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "defer-review: unknown arg '$1'" >&2; exit 2 ;;
+  esac
+done
+[ -n "$pr" ] && [ -n "$repo" ] && [ -n "$note" ] || {
+  echo "usage: defer-review --pr <number> --repo <dir> --note '<why parked>' [--reviewer <bot>]" >&2; exit 2; }
+[ -d "$repo" ] || { echo "defer-review: repo dir '$repo' does not exist" >&2; exit 2; }
+case "$pr" in ''|*[!0-9]*) echo "defer-review: --pr must be a number, got '$pr'" >&2; exit 2 ;; esac
+
+# Record the head SHA and the merge state AT PARK TIME: drain compares against these, so "the branch
+# moved under us" and "a review landed since we parked" are both answerable without guessing.
+head_sha="$(cd "$repo" && gh pr view "$pr" --json headRefOid --jq .headRefOid 2>/dev/null || echo "")"
+[ -n "$head_sha" ] || { echo "defer-review: could not read PR #$pr from $repo (gh auth? wrong repo?)" >&2; exit 2; }
+
+id="$(date +%s)-$$"
+# ts_utc is the one drain-review compares against GitHub timestamps. GitHub returns UTC ("...Z");
+# a local-offset stamp ("...-0700") compares WRONG lexically against it and reports reviews that
+# never happened (caught in first test: a -0700 park read as newer than a 15:31Z comment).
+jq -cn --arg id "$id" --arg ts "$(date +%FT%T%z)" --arg ts_utc "$(date -u +%FT%TZ)" \
+      --arg pr "$pr" --arg repo "$repo" \
+      --arg note "$note" --arg reviewer "$reviewer" --arg sha "$head_sha" \
+      '{id:$id,ts:$ts,ts_utc:$ts_utc,pr:($pr|tonumber),repo:$repo,note:$note,reviewer:$reviewer,
+        parked_sha:$sha,status:"pending",checks:0}' >> "$Q"
+echo "parked PR #$pr ($id) at ${head_sha:0:9}: $note"
+echo "drain-review owns the re-check now — do not hold a session for it."

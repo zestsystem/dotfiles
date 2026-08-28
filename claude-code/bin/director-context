@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# director-context — report per-session Fable context cost and flag sessions due for recycling.
+#
+# Why this is a script and not a rule: "recycle long sessions" is a MECHANICAL property — per-message
+# cache-read is measurable in one pass — and the 2026-08-28 audit proved the prose version fails.
+# Three directors ran all night while their per-message cost grew 587K -> 939K cache-read; the same
+# 1,034 messages of real work under a 250K ceiling would have cost ~260M instead of ~580M, and the
+# weekly Fable window was exhausted anyway. PROTOCOL.md's scar-to-gate rule: when a mandated check is
+# fully mechanical, the fix is a gate, not another preamble sentence.
+#
+# Cost model: a resumed session re-reads its whole context every message, so cost per message grows
+# with session age. Recycling (fresh session + HANDOFF summary) resets it. This reports the number
+# that decides when.
+#
+# Usage:
+#   director-context                  # Fable sessions active in the last 6h
+#   director-context --hours 24       # widen the activity window
+#   director-context --self <id>      # one session; exit 3 when past the recycle ceiling
+#   director-context --quiet          # only WARN/RECYCLE rows (heartbeat / session-start use)
+#
+# Exit: 0 all clear (or report printed), 3 the --self session is past the ceiling.
+set -uo pipefail
+
+WARN_K="${DIRECTOR_CONTEXT_WARN_K:-250}"
+RECYCLE_K="${DIRECTOR_CONTEXT_RECYCLE_K:-400}"
+SAMPLE="${DIRECTOR_CONTEXT_SAMPLE:-20}"   # messages sampled from the tail
+PROJECTS="${CLAUDE_PROJECTS:-$HOME/.claude/projects}"
+
+hours=6; self=""; quiet=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --hours) hours="$2"; shift 2 ;;
+    --self)  self="$2";  shift 2 ;;
+    --quiet) quiet=1;    shift ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "director-context: unknown arg '$1' (see --help)" >&2; exit 2 ;;
+  esac
+done
+[ -d "$PROJECTS" ] || { echo "director-context: no $PROJECTS" >&2; exit 2; }
+
+# Per transcript: dedupe assistant messages by message.id (raw line counts overcount ~2.7x because
+# usage repeats across streamed chunks), then average cache-read over the TAIL — the tail is what the
+# next message will cost, which is the decision-relevant number, not the session's lifetime average.
+sample_one() {
+  jq -rs --argjson n "$SAMPLE" '
+    [ .[] | select(.type=="assistant" and ((.message.model // "") | startswith("claude-fable"))) ]
+    | group_by(.message.id) | map(.[0])
+    | if length == 0 then empty else
+        . as $all
+        | (if (length > $n) then .[length-$n:] else . end) as $tail
+        | ( ($tail | map(.message.usage.cache_read_input_tokens // 0) | add) / ($tail | length) ) as $avg
+        | "\($all|length)\t\($avg|floor)\t\($all[-1].timestamp)"
+      end' "$1" 2>/dev/null
+}
+
+verdict() { # $1 = avg cache-read in tokens
+  local k=$(( $1 / 1000 ))
+  if   [ "$k" -ge "$RECYCLE_K" ]; then echo "RECYCLE"
+  elif [ "$k" -ge "$WARN_K"    ]; then echo "WARN"
+  else echo "OK"; fi
+}
+
+if [ -n "$self" ]; then
+  f="$(find "$PROJECTS" -name "$self.jsonl" -print -quit 2>/dev/null)"
+  [ -n "$f" ] || { echo "director-context: no transcript for session '$self'" >&2; exit 2; }
+  row="$(sample_one "$f")"
+  [ -n "$row" ] || { echo "director-context: session '$self' has no Fable messages"; exit 0; }
+  msgs=$(echo "$row" | cut -f1); avg=$(echo "$row" | cut -f2)
+  v=$(verdict "$avg")
+  printf 'session %s: %s msgs, %sK cache-read/msg (last %s) -> %s\n' \
+    "${self:0:8}" "$msgs" "$((avg/1000))" "$SAMPLE" "$v"
+  if [ "$v" = "RECYCLE" ]; then
+    cat <<EOF
+
+Past the ${RECYCLE_K}K ceiling. Before continuing: post a HANDOFF summary (claims held, branches/PRs
+in flight, what is verified, next step), start a FRESH session from it, and end this one. Every
+further message here costs ~$((avg/1000))K cache-read against the weekly window.
+EOF
+    exit 3
+  fi
+  exit 0
+fi
+
+printf '%-10s %-22s %6s %9s  %s\n' SESSION PROJECT MSGS CR/MSG VERDICT
+printf '%-10s %-22s %6s %9s  %s\n' ---------- ---------------------- ------ --------- -------
+shown=0; flagged=0
+while IFS= read -r f; do
+  row="$(sample_one "$f")"; [ -n "$row" ] || continue
+  msgs=$(echo "$row" | cut -f1); avg=$(echo "$row" | cut -f2)
+  v=$(verdict "$avg")
+  [ "$v" = "OK" ] && [ "$quiet" -eq 1 ] && continue
+  [ "$v" = "OK" ] || flagged=$((flagged+1))
+  sid="$(basename "$f" .jsonl)"
+  proj="$(basename "$(dirname "$f")" | sed 's/^-Users-mikeyim-projects-work-//')"
+  printf '%-10s %-22s %6s %8sK  %s\n' "${sid:0:8}" "${proj:0:22}" "$msgs" "$((avg/1000))" "$v"
+  shown=$((shown+1))
+done < <(find "$PROJECTS" -name '*.jsonl' -mmin "-$((hours*60))" ! -path '*subagents*' 2>/dev/null)
+
+[ "$shown" -eq 0 ] && echo "(no Fable sessions active in the last ${hours}h$([ "$quiet" -eq 1 ] && echo ' past the thresholds'))"
+if [ "$flagged" -gt 0 ]; then
+  echo
+  echo "$flagged session(s) at or past ${WARN_K}K/msg. RECYCLE (>=${RECYCLE_K}K) means: HANDOFF summary,"
+  echo "fresh session, end the old one. Cost per message does not come back down on its own."
+fi
+exit 0
