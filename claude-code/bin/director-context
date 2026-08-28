@@ -26,12 +26,15 @@ RECYCLE_K="${DIRECTOR_CONTEXT_RECYCLE_K:-400}"
 SAMPLE="${DIRECTOR_CONTEXT_SAMPLE:-20}"   # messages sampled from the tail
 PROJECTS="${CLAUDE_PROJECTS:-$HOME/.claude/projects}"
 
-hours=6; self=""; quiet=0
+hours=6; self=""; quiet=0; notify=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --hours) hours="$2"; shift 2 ;;
     --self)  self="$2";  shift 2 ;;
     --quiet) quiet=1;    shift ;;
+    # --notify makes the check SELF-FIRING (launchd): a gate a director must remember to run is
+    # still a prose duty wearing a script's clothes, and remembering is exactly what failed.
+    --notify) notify=1; quiet=1; shift ;;
     -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "director-context: unknown arg '$1' (see --help)" >&2; exit 2 ;;
   esac
@@ -81,20 +84,31 @@ EOF
   exit 0
 fi
 
-printf '%-10s %-22s %6s %9s  %s\n' SESSION PROJECT MSGS CR/MSG VERDICT
-printf '%-10s %-22s %6s %9s  %s\n' ---------- ---------------------- ------ --------- -------
-shown=0; flagged=0
+if [ "$notify" -eq 0 ]; then
+  printf '%-10s %-22s %6s %9s  %s\n' SESSION PROJECT MSGS CR/MSG VERDICT
+  printf '%-10s %-22s %6s %9s  %s\n' ---------- ---------------------- ------ --------- -------
+fi
+shown=0; flagged=0; recycle=0; worst=0
 while IFS= read -r f; do
   row="$(sample_one "$f")"; [ -n "$row" ] || continue
   msgs=$(echo "$row" | cut -f1); avg=$(echo "$row" | cut -f2)
   v=$(verdict "$avg")
   [ "$v" = "OK" ] && [ "$quiet" -eq 1 ] && continue
   [ "$v" = "OK" ] || flagged=$((flagged+1))
+  [ "$v" = "RECYCLE" ] && { recycle=$((recycle+1)); [ "$avg" -gt "$worst" ] && worst="$avg"; }
   sid="$(basename "$f" .jsonl)"
   proj="$(basename "$(dirname "$f")" | sed 's/^-Users-mikeyim-projects-work-//')"
-  printf '%-10s %-22s %6s %8sK  %s\n' "${sid:0:8}" "${proj:0:22}" "$msgs" "$((avg/1000))" "$v"
+  [ "$notify" -eq 0 ] && printf '%-10s %-22s %6s %8sK  %s\n' "${sid:0:8}" "${proj:0:22}" "$msgs" "$((avg/1000))" "$v"
   shown=$((shown+1))
 done < <(find "$PROJECTS" -name '*.jsonl' -mmin "-$((hours*60))" ! -path '*subagents*' 2>/dev/null)
+
+if [ "$notify" -eq 1 ]; then
+  if [ "$recycle" -gt 0 ]; then
+    osascript -e "display notification \"$recycle director session(s) past the ${RECYCLE_K}K ceiling (worst $((worst/1000))K/msg) — hand off and recycle\" with title \"director-context\"" >/dev/null 2>&1 || true
+    echo "$(date +%FT%T%z) RECYCLE $recycle session(s), worst $((worst/1000))K/msg"
+  fi
+  exit 0
+fi
 
 [ "$shown" -eq 0 ] && echo "(no Fable sessions active in the last ${hours}h$([ "$quiet" -eq 1 ] && echo ' past the thresholds'))"
 if [ "$flagged" -gt 0 ]; then
