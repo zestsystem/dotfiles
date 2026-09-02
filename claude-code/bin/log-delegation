@@ -8,7 +8,7 @@
 set -euo pipefail
 LOG="$HOME/.claude/delegation-log.jsonl"
 EXP="$HOME/.claude/experiments.json"
-EXECUTORS="haiku sonnet sonnet-explore opus opus-5 opus-explore fable k3 codex-gpt-5.5-low codex-gpt-5.5-high codex-gpt-5.5-xhigh codex-gpt-5.6-sol-low codex-gpt-5.6-sol-medium codex-gpt-5.6-sol-high codex-gpt-5.6-sol-xhigh codex-gpt-5.6-sol-director-high fable-5-director opus-5-director k3-director grokbot-v1 grok-atlas-director grok-sieve-reviewer grok-scout-investigator grok-forge-builder"
+EXECUTORS="haiku sonnet fable-5-1-low sonnet-explore opus opus-5 opus-explore fable k3 codex-gpt-5.5-low codex-gpt-5.5-high codex-gpt-5.5-xhigh codex-gpt-5.6-sol-low codex-gpt-5.6-sol-medium codex-gpt-5.6-sol-high codex-gpt-5.6-sol-xhigh codex-gpt-5.6-sol-director-high fable-5-director fable-5-1-director opus-5-director k3-director grokbot-v1 grok-atlas-director grok-sieve-reviewer grok-scout-investigator grok-forge-builder"
 CATS="coding/back-end coding/front-end-web coding/front-end-mobile coding/infra exploration writing"
 line="$1"
 echo "$line" | jq -e . > /dev/null || { echo "REJECTED: not valid JSON" >&2; exit 1; }
