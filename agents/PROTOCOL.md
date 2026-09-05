@@ -306,8 +306,8 @@ Multiple directors (Claude/Fable sessions, k3-seated sessions, Codex/ChatGPT ses
 ## Notion claim protocol (cross-director coordination)
 
 For work that lives natively in company Notion. Same doctrine as the Linear
-protocol — comments are the message bus, same six-line comment format
-(🔒 CLAIM / 📍 STATUS / 🚧 BLOCKED / 🤝 HANDOFF / ⚠️ TAKEOVER / ✅ RELEASE) —
+protocol — comments are the message bus, same seven-type comment format
+(🔒 CLAIM / 📍 STATUS / 🚧 BLOCKED / 🤝 HANDOFF / ⚠️ TAKEOVER / ✅ RELEASE / 🚧 INTERRUPTED — "six-line" until 2026-09-05, an omission Astra caught) —
 with Notion-specific mechanics. The canonical rules live on the "Agent Claim
 Protocol" page next to the "Agent Tasks" database (under Docs) in company
 Notion; this section is the summary directors carry between sessions.
