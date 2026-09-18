@@ -19,6 +19,26 @@ while [ $# -gt 0 ]; do
 done
 [ $# -gt 0 ] || { echo "usage: leaf-run --issue <id> --lane <lane> [--expect <output>] -- <cmd...>" >&2; exit 2; }
 
+# Account-scoping guard (Mike, 2026-09-18: "utc work on utc accounts only; voidpet work on
+# voidpet accounts only" — PROTOCOL.md lane table). A Claude-family launch from a project
+# tree must bill that project's account; the slot login is volatile state, so read it per
+# launch. Fails CLOSED for projects with a known designation; unknown projects pass with a
+# note. Scar: week-of-Sep-16 voidpet builds billed the UTC-overflow slot unnoticed.
+case "$1" in
+  claude|claude-mk|*/claude|*/claude-mk)
+    slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    [ "${1##*/}" = "claude-mk" ] && slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude-mk}"
+    slot_email=$(jq -r '.oauthAccount.emailAddress // empty' "$slot_home/.claude.json" 2>/dev/null)
+    case "$PWD" in
+      "$HOME/projects/work/voidpet-poc"*)
+        if [ "$slot_email" != "mike@voidpet.com" ]; then
+          echo "leaf-run: BLOCKED — voidpet work must bill the voidpet account; slot '$slot_home' is logged in as '${slot_email:-<none>}'." >&2
+          echo "leaf-run: create/use the voidpet slot: CLAUDE_CONFIG_DIR=\$HOME/.claude-voidpet (login: CLAUDE_CONFIG_DIR=~/.claude-voidpet claude login)" >&2
+          exit 3
+        fi ;;
+    esac ;;
+esac
+
 "$@" &
 pid=$!
 run="$(date +%s)-$pid"
