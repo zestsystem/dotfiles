@@ -50,7 +50,15 @@ if [ -f "$EXP" ] && [ -n "$cat_" ]; then
     elif [[ "$today" > "$stale" ]]; then
       echo "EXPERIMENT $id: STALE since $stale with $done_n/$quota datapoints — run it deliberately on the next matching task or close it with a scorecard note" >&2
     elif [ "$expfield" != "$id" ]; then
-      echo "EXPERIMENT $id ACTIVE for cat '$cat_' ($done_n/$quota done, stale $stale): $reminder" >&2
+      # Full reminder text costs ~150 tokens per experiment per log line in a director's context;
+      # default to ids only (LOG_DELEGATION_VERBOSE=1 restores the text; it lives in experiments.json).
+      if [ -n "${LOG_DELEGATION_VERBOSE:-}" ]; then
+        echo "EXPERIMENT $id ACTIVE for cat '$cat_' ($done_n/$quota done, stale $stale): $reminder" >&2
+      else
+        active="${active:+$active, }$id $done_n/$quota"
+      fi
     fi
   done < <(jq -r '.experiments[] | [.id, .stale, (.trigger_cats | join(" ")), .shadow_executor, (.quota | tostring), .reminder] | @tsv' "$EXP" 2>/dev/null)
+  [ -n "${active:-}" ] && echo "open experiments for cat '$cat_': $active (triggers: ~/.claude/experiments.json)" >&2
+  true
 fi
