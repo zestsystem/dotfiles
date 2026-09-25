@@ -28,8 +28,22 @@ case "$1" in
   claude|claude-mk|*/claude|*/claude-mk)
     slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
     [ "${1##*/}" = "claude-mk" ] && slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude-mk}"
-    slot_email=$(jq -r '.oauthAccount.emailAddress // empty' "$slot_home/.claude.json" 2>/dev/null)
+    # Ask the CLI, never a config file (2026-09-24 scar): `oauthAccount` in ~/.claude.json read
+    # mike@voidpet.com while the default slot was actually logged in as the UTC account, and the
+    # default slot has no `$slot_home/.claude.json` at all, so the old jq read came back empty.
+    # The default slot is queried with CLAUDE_CONFIG_DIR unset, exactly as `claude` runs it.
+    if [ "$slot_home" = "$HOME/.claude" ]; then
+      slot_email=$(env -u CLAUDE_CONFIG_DIR claude auth status 2>/dev/null | jq -r '.email // empty')
+    else
+      slot_email=$(CLAUDE_CONFIG_DIR="$slot_home" claude auth status 2>/dev/null | jq -r '.email // empty')
+    fi
+    echo "leaf-run: slot '$slot_home' bills '${slot_email:-<unknown>}'" >&2
     case "$PWD" in
+      "$HOME/projects/work/utc"*)
+        if [ -z "$slot_email" ] || [ "$slot_email" = "mike@voidpet.com" ]; then
+          echo "leaf-run: BLOCKED — UTC work must bill a UTC account; slot '$slot_home' is logged in as '${slot_email:-<none>}'." >&2
+          exit 3
+        fi ;;
       "$HOME/projects/work/voidpet-poc"*)
         if [ "$slot_email" != "mike@voidpet.com" ]; then
           echo "leaf-run: BLOCKED — voidpet work must bill the voidpet account; slot '$slot_home' is logged in as '${slot_email:-<none>}'." >&2
