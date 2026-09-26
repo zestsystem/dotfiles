@@ -86,7 +86,7 @@ Bus first lines: 🔒 CLAIM (plan/write-set); 📍 STATUS (branch/commits/verifi
 
 Normal autonomous takeover: ≥3 days without holder comments/status/branch activity, BLOCKED you can unblock, or Mike directs; read full thread and existing branches/worktrees, continue actual work, swap label and post TAKEOVER. No active-holder takeover absent BLOCKED/HANDOFF/Mike direction; never human-only. Sentinel flags are detection, not authority. Grant-mode supersedes multi-day wait: queued deliveries with NO assistant transcript turn >30min = dead (not lastActivityAt); take over immediately from surviving work, notify human once about restart, proceed. After restart sweep ALL peer claims; with ≥2 disjoint claimable units keep ≥2 leaves in flight. Read formation module when Mike grants parallel continuous work; native children are not persistent peers.
 
-Notion: Agent select (`claude/codex/k3/human-only`) + signed comments owns work; set Status/Last Heartbeat, re-read claim race. Active takeovers follow Linear; Backlog reservations expire after 1 day without heartbeat. Re-check Frontier/Runnable EACH claim. ALL voidpet-poc → Agent Tasks; UTC → Linear. Read substrate mechanics before claiming; no leaf database access.
+Notion: Agent select (`claude/codex/k3/human-only`) + signed comments owns work; set Status/Last Heartbeat, re-read claim race. Active takeovers follow Linear; Backlog reservations expire after 1 day without heartbeat. Re-check Frontier/Runnable EACH claim. ALL voidpet-poc → Agent Tasks; UTC and Mike-owned sibling projects (local `project_routing` map) → Linear. Read substrate mechanics before claiming; no leaf database access.
 
 ## Standing operational grants
 

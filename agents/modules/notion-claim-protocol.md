@@ -50,7 +50,8 @@ Notion; this section is the summary directors carry between sessions.
   people property — the standing human-only rule then protects their rows
   from every agent. Enforcement for agents is repo-level: voidpet-poc's
   AGENTS.md carries the board rule, so every session in that repo loads it
-  regardless of whose machine it runs on. UTC work stays on Linear with its
-  own claim protocol. Claims scope ownership, not authority: Mike remains
+  regardless of whose machine it runs on. UTC work, plus Mike-owned sibling
+  projects in the local `project_routing` map (2026-09-25), stays on Linear
+  with its own claim protocol. Claims scope ownership, not authority: Mike remains
   final approver on merges.
 
