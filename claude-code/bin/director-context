@@ -1,30 +1,35 @@
 #!/usr/bin/env bash
-# director-context — report per-session Fable context cost and flag sessions due for recycling.
+# director-context — context-occupancy telemetry for director sessions, and a check that the
+# compaction window is actually in force.
 #
-# Why this is a script and not a rule: "recycle long sessions" is a MECHANICAL property — per-message
-# cache-read is measurable in one pass — and the 2026-08-28 audit proved the prose version fails.
-# Three directors ran all night while their per-message cost grew 587K -> 939K cache-read; the same
-# 1,034 messages of real work under a 250K ceiling would have cost ~260M instead of ~580M, and the
-# weekly Fable window was exhausted anyway. PROTOCOL.md's scar-to-gate rule: when a mandated check is
-# fully mechanical, the fix is a gate, not another preamble sentence.
+# Policy (2026-09-29 pilot, Mike-approved; see ~/.config/agents/modules/director-lifecycle.md): a director
+# resets its context by in-process AUTO-COMPACTION at CLAUDE_CODE_AUTO_COMPACT_WINDOW (settings.json
+# env, 600000), not by recycling into a fresh session. The Fable-era rule this script used to gate
+# (WARN 250K / RECYCLE 400K cache-read per message -> fresh session) is retired: it was a meter rule
+# with no quality basis, and a fresh session drops the waiters, crons and watches a compaction keeps.
 #
-# Cost model: a resumed session re-reads its whole context every message, so cost per message grows
-# with session age. Recycling (fresh session + HANDOFF summary) resets it. This reports the number
-# that decides when.
+# What it reports per session: messages (deduplicated by message.id, in transcript order), current
+# occupancy = input + cache-read + cache-write of the LATEST message (what the next message re-reads),
+# the tail average, and the compactions the transcript recorded (with their pre-compaction size).
+# The configured window's effective trigger is ~window - reserved output (<=20K) - 13K.
 #
 # Usage:
-#   director-context                  # Fable sessions active in the last 6h
+#   director-context                  # sessions active in the last 6h (all models)
 #   director-context --hours 24       # widen the activity window
-#   director-context --self <id>      # one session; exit 3 when past the recycle ceiling
-#   director-context --quiet          # only WARN/RECYCLE rows (heartbeat / session-start use)
+#   director-context --self <id>      # one session; exit 3 when occupancy is past the window
+#   director-context --quiet          # only OVER rows (heartbeat / session-start use)
+#   director-context --notify         # launchd form of --quiet: macOS notification for OVER sessions
 #
-# Exit: 0 all clear (or report printed), 3 the --self session is past the ceiling.
+# OVER = occupancy past the configured window, i.e. compaction is NOT enforcing it for that session
+# (it started before the setting, or auto-compaction is disabled). It is not a recycle order: keep
+# working; the session still auto-compacts at the model default, and new sessions pick the window up.
+#
+# Exit: 0 report printed / all clear, 3 the --self session is OVER, 2 usage/input error.
 set -uo pipefail
 
-WARN_K="${DIRECTOR_CONTEXT_WARN_K:-250}"
-RECYCLE_K="${DIRECTOR_CONTEXT_RECYCLE_K:-400}"
-SAMPLE="${DIRECTOR_CONTEXT_SAMPLE:-20}"   # messages sampled from the tail
+SAMPLE="${DIRECTOR_CONTEXT_SAMPLE:-20}"   # messages averaged from the tail
 PROJECTS="${CLAUDE_PROJECTS:-$HOME/.claude/projects}"
+SETTINGS="${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}"
 
 hours=6; self=""; quiet=0; notify=0
 while [ $# -gt 0 ]; do
@@ -35,49 +40,67 @@ while [ $# -gt 0 ]; do
     # --notify makes the check SELF-FIRING (launchd): a gate a director must remember to run is
     # still a prose duty wearing a script's clothes, and remembering is exactly what failed.
     --notify) notify=1; quiet=1; shift ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "director-context: unknown arg '$1' (see --help)" >&2; exit 2 ;;
   esac
 done
 [ -d "$PROJECTS" ] || { echo "director-context: no $PROJECTS" >&2; exit 2; }
 
-# Per transcript: dedupe assistant messages by message.id (raw line counts overcount ~2.7x because
-# usage repeats across streamed chunks), then average cache-read over the TAIL — the tail is what the
-# next message will cost, which is the decision-relevant number, not the session's lifetime average.
+# The window: an explicit process env wins (that is what the harness reads), else settings.json env.
+window="${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}"
+[ -n "$window" ] || window="$(jq -r '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW // empty' "$SETTINGS" 2>/dev/null)"
+[ -n "$window" ] || window=0
+window_k=$(( window / 1000 ))
+
+# Per transcript: first occurrence of each message.id in transcript order (streamed chunks repeat the
+# same usage; group_by would re-sort by id and lose the chronological tail), real models only.
+# Emits: msgs, latest occupancy, tail-average occupancy, compaction count, last pre-compaction size.
 sample_one() {
   jq -rs --argjson n "$SAMPLE" '
-    [ .[] | select(.type=="assistant" and ((.message.model // "") | startswith("claude-fable"))) ]
-    | group_by(.message.id) | map(.[0])
+    def occ: (.message.usage // {}) as $u
+      | (($u.input_tokens // 0) + ($u.cache_read_input_tokens // 0) + ($u.cache_creation_input_tokens // 0));
+    ([ .[] | select(.type=="system" and .subtype=="compact_boundary") | (.compactMetadata.preTokens // 0) ]) as $compactions
+    | [ .[] | select(.type=="assistant" and ((.message.model // "<synthetic>") != "<synthetic>")) ]
+    | reduce .[] as $m ({seen: {}, out: []};
+        if .seen[$m.message.id] then . else .seen[$m.message.id] = true | .out += [$m] end)
+    | .out
     | if length == 0 then empty else
         . as $all
         | (if (length > $n) then .[length-$n:] else . end) as $tail
-        | ( ($tail | map(.message.usage.cache_read_input_tokens // 0) | add) / ($tail | length) ) as $avg
-        | "\($all|length)\t\($avg|floor)\t\($all[-1].timestamp)"
+        | "\($all|length)\t\($all[-1]|occ)\t\((($tail|map(occ)|add) / ($tail|length))|floor)\t\($compactions|length)\t\($compactions[-1] // 0)"
       end' "$1" 2>/dev/null
 }
 
-verdict() { # $1 = avg cache-read in tokens
-  local k=$(( $1 / 1000 ))
-  if   [ "$k" -ge "$RECYCLE_K" ]; then echo "RECYCLE"
-  elif [ "$k" -ge "$WARN_K"    ]; then echo "WARN"
-  else echo "OK"; fi
+verdict() { # $1 = latest occupancy in tokens
+  if [ "$window" -gt 0 ] && [ "$1" -gt "$window" ]; then echo "OVER"; else echo "OK"; fi
+}
+
+describe_window() {
+  if [ "$window" -gt 0 ]; then
+    echo "compaction window ${window_k}K (effective trigger ~$(( window_k - 33 ))K)"
+  else
+    echo "no CLAUDE_CODE_AUTO_COMPACT_WINDOW configured: sessions compact at the model default (~967K on 1M)"
+  fi
 }
 
 if [ -n "$self" ]; then
   f="$(find "$PROJECTS" -name "$self.jsonl" -print -quit 2>/dev/null)"
   [ -n "$f" ] || { echo "director-context: no transcript for session '$self'" >&2; exit 2; }
   row="$(sample_one "$f")"
-  [ -n "$row" ] || { echo "director-context: session '$self' has no Fable messages"; exit 0; }
-  msgs=$(echo "$row" | cut -f1); avg=$(echo "$row" | cut -f2)
-  v=$(verdict "$avg")
-  printf 'session %s: %s msgs, %sK cache-read/msg (last %s) -> %s\n' \
-    "${self:0:8}" "$msgs" "$((avg/1000))" "$SAMPLE" "$v"
-  if [ "$v" = "RECYCLE" ]; then
+  [ -n "$row" ] || { echo "director-context: session '$self' has no assistant messages"; exit 0; }
+  IFS=$'\t' read -r msgs occ avg ncomp lastpre <<< "$row"
+  v=$(verdict "$occ")
+  printf 'session %s: %s msgs, context %sK now (tail avg %sK), %s compaction(s)%s -> %s\n' \
+    "${self:0:8}" "$msgs" "$((occ/1000))" "$((avg/1000))" "$ncomp" \
+    "$([ "$ncomp" -gt 0 ] && echo ", last at $((lastpre/1000))K")" "$v"
+  echo "$(describe_window)"
+  if [ "$v" = "OVER" ]; then
     cat <<EOF
 
-Past the ${RECYCLE_K}K ceiling. Before continuing: post a HANDOFF summary (claims held, branches/PRs
-in flight, what is verified, next step), start a FRESH session from it, and end this one. Every
-further message here costs ~$((avg/1000))K cache-read against the weekly window.
+This session is past the ${window_k}K window, so the window is not being enforced for it (it started
+before the setting, or auto-compaction is off). Do NOT recycle into a fresh session for this: keep
+working, keep the HANDOFF checkpoint current; it will auto-compact at the model default, and new
+sessions pick the window up.
 EOF
     exit 3
   fi
@@ -85,35 +108,31 @@ EOF
 fi
 
 if [ "$notify" -eq 0 ]; then
-  printf '%-10s %-22s %6s %9s  %s\n' SESSION PROJECT MSGS CR/MSG VERDICT
-  printf '%-10s %-22s %6s %9s  %s\n' ---------- ---------------------- ------ --------- -------
+  echo "$(describe_window)"
+  printf '%-10s %-22s %6s %8s %8s %5s  %s\n' SESSION PROJECT MSGS CONTEXT TAIL-AVG COMP VERDICT
+  printf '%-10s %-22s %6s %8s %8s %5s  %s\n' ---------- ---------------------- ------ -------- -------- ----- -------
 fi
-shown=0; flagged=0; recycle=0; worst=0
+shown=0; over=0; worst=0
 while IFS= read -r f; do
   row="$(sample_one "$f")"; [ -n "$row" ] || continue
-  msgs=$(echo "$row" | cut -f1); avg=$(echo "$row" | cut -f2)
-  v=$(verdict "$avg")
+  IFS=$'\t' read -r msgs occ avg ncomp lastpre <<< "$row"
+  v=$(verdict "$occ")
   [ "$v" = "OK" ] && [ "$quiet" -eq 1 ] && continue
-  [ "$v" = "OK" ] || flagged=$((flagged+1))
-  [ "$v" = "RECYCLE" ] && { recycle=$((recycle+1)); [ "$avg" -gt "$worst" ] && worst="$avg"; }
+  [ "$v" = "OVER" ] && { over=$((over+1)); [ "$occ" -gt "$worst" ] && worst="$occ"; }
   sid="$(basename "$f" .jsonl)"
-  proj="$(basename "$(dirname "$f")" | sed 's/^-Users-mikeyim-projects-work-//')"
-  [ "$notify" -eq 0 ] && printf '%-10s %-22s %6s %8sK  %s\n' "${sid:0:8}" "${proj:0:22}" "$msgs" "$((avg/1000))" "$v"
+  proj="$(basename "$(dirname "$f")" | sed 's/^-Users-[^-]*-projects-work-//')"
+  [ "$notify" -eq 0 ] && printf '%-10s %-22s %6s %7sK %7sK %5s  %s\n' \
+    "${sid:0:8}" "${proj:0:22}" "$msgs" "$((occ/1000))" "$((avg/1000))" "$ncomp" "$v"
   shown=$((shown+1))
 done < <(find "$PROJECTS" -name '*.jsonl' -mmin "-$((hours*60))" ! -path '*subagents*' 2>/dev/null)
 
 if [ "$notify" -eq 1 ]; then
-  if [ "$recycle" -gt 0 ]; then
-    osascript -e "display notification \"$recycle director session(s) past the ${RECYCLE_K}K ceiling (worst $((worst/1000))K/msg) — hand off and recycle\" with title \"director-context\"" >/dev/null 2>&1 || true
-    echo "$(date +%FT%T%z) RECYCLE $recycle session(s), worst $((worst/1000))K/msg"
+  if [ "$over" -gt 0 ]; then
+    osascript -e "display notification \"$over session(s) past the ${window_k}K compaction window (worst $((worst/1000))K) — window not in force for them\" with title \"director-context\"" >/dev/null 2>&1 || true
+    echo "$(date +%FT%T%z) OVER $over session(s), worst $((worst/1000))K"
   fi
   exit 0
 fi
 
-[ "$shown" -eq 0 ] && echo "(no Fable sessions active in the last ${hours}h$([ "$quiet" -eq 1 ] && echo ' past the thresholds'))"
-if [ "$flagged" -gt 0 ]; then
-  echo
-  echo "$flagged session(s) at or past ${WARN_K}K/msg. RECYCLE (>=${RECYCLE_K}K) means: HANDOFF summary,"
-  echo "fresh session, end the old one. Cost per message does not come back down on its own."
-fi
+[ "$shown" -eq 0 ] && echo "(no sessions active in the last ${hours}h$([ "$quiet" -eq 1 ] && echo ' past the window'))"
 exit 0
