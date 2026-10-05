@@ -2,6 +2,7 @@
   description = "Development packages and systems for Zestsystem";
 
   inputs = {
+    flake-parts.url = "github:hercules-ci/flake-parts";
     darwin.inputs.nixpkgs.follows = "nixpkgs";
     darwin.url = "github:lnl7/nix-darwin";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -36,12 +37,17 @@
           packages = {
             zestsystem-nvim = pkgs.vimUtils.buildVimPlugin {
               name = "Zestsystem";
-              src = ./config/nvim;
+              src = inputs.zestsystem-nvim;
             };
           };
         };
 
       flake = {
+        nixosModules.default = import ./system/nixos { inherit inputs; };
+        templates.thinkpad = {
+          path = ./templates/thinkpad;
+          description = "Add shared dotfiles to an installed NixOS ThinkPad";
+        };
         darwinConfigurations = {
           work-darwin = systems.mkDarwin {
             system = "aarch64-darwin";
