@@ -52,13 +52,12 @@ just darwin work switch
 5. Build before activating:
 
    ```sh
-   sudo nixos-rebuild build --flake /etc/nixos#thinkpad
-   sudo nixos-rebuild switch --flake /etc/nixos#thinkpad
+   sudo env NIX_CONFIG='experimental-features = nix-command flakes' nixos-rebuild build --flake /etc/nixos#thinkpad
+   sudo env NIX_CONFIG='experimental-features = nix-command flakes' nixos-rebuild switch --flake /etc/nixos#thinkpad
    ```
 
-   If flakes aren't enabled yet, prefix the first command with
-   `sudo env NIX_CONFIG='experimental-features = nix-command flakes'` instead
-   of `sudo`. Home Manager backs up existing managed files with `.backup`;
+   Both bootstrap commands enable flakes explicitly: building alone does not
+   activate the new Nix settings. Home Manager backs up managed files with `.backup`;
    resolve any existing backup-name collisions before retrying activation.
 
 The template fetches the published `main` branch. Until this change is merged,
@@ -94,3 +93,8 @@ and battery behavior must be checked on the actual laptop.
 Secrets and service logins are separate: authenticate Doppler/GitHub/Codex on the
 laptop as needed. `just secrets` is opt-in and retrieves your existing Doppler
 configuration; rebuilding alone does not download secrets.
+
+Linux receives generated Claude settings with the macOS sound and checkout
+auto-sync hooks removed (the secret-read guard remains). Edit their source in
+`claude-code/settings.json` and rebuild to update them. macOS retains its writable
+settings symlink and existing hooks.
