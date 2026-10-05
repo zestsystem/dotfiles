@@ -15,3 +15,7 @@ secrets:
         ssh-add ~/.ssh/id_ed25519; \
         echo "SSH key bootstrapped"; \
     fi
+
+# Run on the ThinkPad after installing the template in /etc/nixos.
+nixos command="switch":
+    sudo nixos-rebuild {{command}} --flake /etc/nixos#thinkpad

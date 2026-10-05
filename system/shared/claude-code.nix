@@ -3,8 +3,22 @@
 # Claude sessions land in the repo working tree (and get committed + pushed).
 # delegation-scorecard.md is intentionally NOT synced: this repo is public and
 # the scorecard accumulates work internals — it stays machine-local in ~/.claude.
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
+  settings = builtins.fromJSON (builtins.readFile ../../claude-code/settings.json);
+  linuxSettings = settings // {
+    # afplay is macOS-only; auto-sync assumes ~/.config itself is the Git root.
+    # Keep the PreToolUse secret-read guard and all other portable settings.
+    hooks = builtins.removeAttrs settings.hooks [
+      "Notification"
+      "Stop"
+    ];
+  };
   src = "${config.home.homeDirectory}/.config/claude-code";
   link = path: {
     source = config.lib.file.mkOutOfStoreSymlink "${src}/${path}";
@@ -14,7 +28,14 @@ let
 in
 {
   home.file.".claude/CLAUDE.md" = link "CLAUDE.md";
-  home.file.".claude/settings.json" = link "settings.json";
+  home.file.".claude/settings.json" =
+    if pkgs.stdenv.isDarwin then
+      link "settings.json"
+    else
+      {
+        text = builtins.toJSON linuxSettings;
+        force = true;
+      };
   home.file.".claude/skills/use-codex" = link "skills/use-codex";
   home.file.".claude/skills/frontend-design" = link "skills/frontend-design";
 

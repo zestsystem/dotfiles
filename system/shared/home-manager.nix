@@ -1,5 +1,5 @@
 { inputs }:
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 let
   catppuccin-bat = pkgs.fetchFromGitHub {
     owner = "catppuccin";
@@ -190,21 +190,19 @@ in
     themeFile = "Catppuccin-Macchiato";
   };
 
-  programs.neovim =
-    (inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; })
-    // {
-      extraConfig = ''
-        lua << EOF
-          vim.g.rainbow_delimiters = {
-            strategy = {
-              [""] = require 'rainbow-delimiters.strategy.no-op',
-            },
-          }
+  programs.neovim = (inputs.zestsystem-nvim.lib.mkHomeManager { inherit system; }) // {
+    extraConfig = ''
+      lua << EOF
+        vim.g.rainbow_delimiters = {
+          strategy = {
+            [""] = require 'rainbow-delimiters.strategy.no-op',
+          },
+        }
 
-          require 'zestsystem'.init()
-        EOF
-      '';
-    };
+        require 'zestsystem'.init()
+      EOF
+    '';
+  };
 
   programs.ssh = {
     enable = true;
@@ -267,11 +265,12 @@ in
     shellAliases = {
       cat = "bat";
       wt = "git worktree";
-      # Codex.app was folded into the ChatGPT desktop app (2026-07); the CLI ships in its bundle
-      codex = "/Applications/ChatGPT.app/Contents/Resources/codex";
 
       # Use 'bunx' to run commands from the bun package manager
       opencode = "bunx opencode-ai";
+    }
+    // lib.optionalAttrs isDarwin {
+      codex = "/Applications/ChatGPT.app/Contents/Resources/codex";
     };
 
     plugins = [
