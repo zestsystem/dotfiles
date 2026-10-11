@@ -62,12 +62,5 @@
   "agentPushNotifEnabled": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754078592851
-  },
-  "permissions": {
-    "allow": [
-      "Bash(just land)",
-      "Bash(just land *)",
-      "Bash(direnv exec . just land *)"
-    ]
   }
 }
