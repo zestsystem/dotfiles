@@ -98,6 +98,7 @@ Notion: Agent select (`claude/codex/k3/human-only`) + signed comments owns work;
 - **G4 CI workflow tuning within the fixed menu:** runner sizes among approved Blacksmith tiers, timeout re-baselines WITH measured basis in the diff, concurrency/paths-filter adjustments — via normal PRs, ask-free. Never anything that changes what gates VERIFY.
 - **G5 (host) NOPASSWD sudoers for exactly `xcode-select --switch`** — Mike installs the sudoers line; directors may then run it for mobile-QA host repair. No other sudo, ever.
 - Linear access: durable API token lives in Doppler project `linear` — the OAuth-connector-decay fallback of record (never print the token).
+- Connector auth notices (2026-10-11 scar): a "requires authentication" notice naming a LOCAL server (`linear-server`, `mobbin`, `plugin:<x>:<x>`) is not a claude.ai connector failure — claude.ai connectors are the `claude.ai <Name>` rows of `claude mcp list` (UUID-prefixed tools). Check those rows before telling Mike to re-auth anything.
 <!-- VERBATIM-GRANTS-END -->
 
 ## Index — read the named file WHEN the trigger applies
