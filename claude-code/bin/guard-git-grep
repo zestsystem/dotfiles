@@ -27,7 +27,7 @@ printf '%s' "$c" | grep -Eq '(^|[^A-Za-z_])LC_(ALL|CTYPE)=["'"'"']?C([^A-Za-z.]|
 printf '%s\n' "$c" | awk '{ gsub(/\047[^\047]*\047/, "Q"); gsub(/"[^"]*"/, "Q"); gsub(/\|\||&&|[;|&]/, "\n"); print }' | while IFS= read -r seg; do
   printf '%s' "$seg" | grep -Eq '(^|[[:space:]/(`])git[[:space:]]+([^[:space:]]+[[:space:]]+)*grep([[:space:]]|$)' || continue
   # Safe flags: -I/-F/-P in any short-option cluster, or their long forms.
-  printf '%s' "$seg" | grep -Eq '(^|[[:space:]])-[A-Za-z0-9]*[IFP][A-Za-z0-9]*([[:space:]]|$)|--(fixed-strings|perl-regexp)([[:space:]=]|$)' && continue
+  printf '%s' "$seg" | grep -Eq '(^|[[:space:]])-[A-Za-z0-9]*[IFP][A-Za-z0-9]*([[:space:]`)]|$)|--(fixed-strings|perl-regexp)([[:space:]=`)]|$)' && continue
   {
     echo "BLOCKED by guard-git-grep: regex \`git grep\` without -I can eat 20+ GB on this host."
     echo "Under the UTF-8 locale, macOS regex blows up on binary blobs (crash scar 2026-10-14)."
