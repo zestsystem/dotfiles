@@ -21,7 +21,10 @@ c="$(printf '%s' "$cmd" | tr '\n\t' '  ')"
 printf '%s' "$c" | grep -Eq '(^|[^A-Za-z_])LC_(ALL|CTYPE)=["'"'"']?C([^A-Za-z.]|$)' && exit 0
 
 # Check each pipeline/list segment separately so `git log | grep x` is never flagged.
-printf '%s\n' "$c" | awk '{ gsub(/\|\||&&|[;|&]/, "\n"); print }' | while IFS= read -r seg; do
+# Quoted strings are blanked first: patterns like 'a|b' must not split segments, and text that merely
+# mentions the command (echo, commit messages, heredoc'd scripts) must not trip it. A real run hidden in
+# `bash -c "..."` slips through; the memory watchdog is the backstop for that.
+printf '%s\n' "$c" | awk '{ gsub(/\047[^\047]*\047/, "Q"); gsub(/"[^"]*"/, "Q"); gsub(/\|\||&&|[;|&]/, "\n"); print }' | while IFS= read -r seg; do
   printf '%s' "$seg" | grep -Eq '(^|[[:space:]/(`])git[[:space:]]+([^[:space:]]+[[:space:]]+)*grep([[:space:]]|$)' || continue
   # Safe flags: -I/-F/-P in any short-option cluster, or their long forms.
   printf '%s' "$seg" | grep -Eq '(^|[[:space:]])-[A-Za-z0-9]*[IFP][A-Za-z0-9]*([[:space:]]|$)|--(fixed-strings|perl-regexp)([[:space:]=]|$)' && continue
