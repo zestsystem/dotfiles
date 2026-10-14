@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# guard-git-grep — Claude Code PreToolUse(Bash) guard.
+# Refuses `git grep` runs that can exhaust host memory, and says how to fix the command.
+#
+# Scar 2026-10-14: under a UTF-8 locale (LC_ALL=en_US.UTF-8 here), macOS's regex engine blows up on
+# binary blobs. Any non-literal `git grep` (BRE or -E) over a tree with binary files (PNG screenshots,
+# fonts, pptx) grew past 2 GB in 0.3 s, and the memory watchdog killed two such runs at 24–25 GB.
+# The same signature, a short-lived `git` at 208 GB, filled swap and forced a reboot that morning.
+# Both Apple git 2.50 and nix git 2.54 do it, and grep.threads=1 does not help. Measured on
+# voidpet-poc: these stay under 0.6 GB:
+#   -I (skip binary files), -F (fixed strings), -P (PCRE), or LC_ALL=C for the run.
+# Literal patterns are actually safe too, but telling them apart is not worth it: -I costs nothing.
+# Exit 2 blocks the tool call; stderr is shown to Claude.
+set -uo pipefail
+
+cmd="$(jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
+[ -n "$cmd" ] || exit 0
+c="$(printf '%s' "$cmd" | tr '\n\t' '  ')"
+
+# A C locale anywhere in the command (prefix or export) makes every git grep in it safe.
+printf '%s' "$c" | grep -Eq '(^|[^A-Za-z_])LC_(ALL|CTYPE)=["'"'"']?C([^A-Za-z.]|$)' && exit 0
+
+# Check each pipeline/list segment separately so `git log | grep x` is never flagged.
+printf '%s\n' "$c" | awk '{ gsub(/\|\||&&|[;|&]/, "\n"); print }' | while IFS= read -r seg; do
+  printf '%s' "$seg" | grep -Eq '(^|[[:space:]/(`])git[[:space:]]+([^[:space:]]+[[:space:]]+)*grep([[:space:]]|$)' || continue
+  # Safe flags: -I/-F/-P in any short-option cluster, or their long forms.
+  printf '%s' "$seg" | grep -Eq '(^|[[:space:]])-[A-Za-z0-9]*[IFP][A-Za-z0-9]*([[:space:]]|$)|--(fixed-strings|perl-regexp)([[:space:]=]|$)' && continue
+  {
+    echo "BLOCKED by guard-git-grep: regex \`git grep\` without -I can eat 20+ GB on this host."
+    echo "Under the UTF-8 locale, macOS regex blows up on binary blobs (crash scar 2026-10-14)."
+    echo "Re-run with ONE of: -I (skip binary files, usual fix) | -F (fixed string) | -P (PCRE) | LC_ALL=C prefix."
+    echo "  e.g.  git grep -I -n -E 'pattern' origin/main"
+  } >&2
+  exit 2
+done

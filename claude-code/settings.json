@@ -36,6 +36,11 @@
             "type": "command",
             "command": "\"$HOME/.config/claude-code/bin/block-secret-reads\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/claude-code/bin/guard-git-grep\"",
+            "timeout": 10
           }
         ]
       }
