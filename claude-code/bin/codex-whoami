@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# codex-whoami [HOME_DIR] — which account a Codex home bills, WITHOUT printing any token.
+# Prints one JSON line {home, auth_mode, email, plan} decoded from <home>/auth.json's id_token
+# claims (`codex login status` names no account). HOME_DIR defaults to $CODEX_HOME, else ~/.codex.
+# Redacting by construction: only those four fields ever leave jq, and jq's own errors (which
+# could echo input) go to /dev/null. Exit 1 when the file is missing or unparseable.
+set -uo pipefail
+home="${1:-${CODEX_HOME:-$HOME/.codex}}"
+home="${home%/}"
+f="$home/auth.json"
+if [ ! -r "$f" ]; then
+  jq -cn --arg home "$home" '{home:$home,error:"no readable auth.json"}'
+  exit 1
+fi
+jq -ce --arg home "$home" '
+  def b64url: gsub("-";"+") | gsub("_";"/") | . as $s
+    | ($s + ("===" | .[0:((4 - ($s|length) % 4) % 4)])) | @base64d;
+  (try (.tokens.id_token | split(".")[1] | b64url | fromjson) catch null) as $c
+  | {home:$home, auth_mode:(.auth_mode // null), email:($c.email // null),
+     plan:($c["https://api.openai.com/auth"].chatgpt_plan_type // null)}' "$f" 2>/dev/null \
+  || { jq -cn --arg home "$home" '{home:$home,error:"unparseable auth.json"}'; exit 1; }

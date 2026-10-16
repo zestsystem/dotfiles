@@ -67,7 +67,7 @@ expand_path() {
 # Var value as the guard tracks it: a path, <inherit> (leaf-run's own env), <unset>, <unresolved:..>.
 track_val() { local v; if v=$(expand_path "$1"); then printf '%s' "$v"; else printf '<unresolved:%s>' "$1"; fi; }
 
-L_FAM=(); L_EXE=(); L_CC=(); L_CH=(); DIRS=(); BAD_DIR=""; API_KEY_HIT=""; PEEK_DEPTH=0
+L_FAM=(); L_EXE=(); L_CC=(); L_CH=(); DIRS=(); BAD_DIR=""; API_KEY_HIT=""; PEEK_DEPTH=0; KIMI_HIT=""
 LAST_CC=""; LAST_CH=""
 add_launch() { local n=${#L_FAM[@]}; L_FAM[$n]=$1; L_EXE[$n]=$2; L_CC[$n]=$3; L_CH[$n]=$4; }
 add_dir() { local d; if d=$(expand_path "$1"); then DIRS[${#DIRS[@]}]="$d"; else BAD_DIR="$1"; fi; }
@@ -160,7 +160,12 @@ scan_tokens() {
     fi
     note_assign "$t" && continue
     b="${t##*/}"
-    case "$b" in env) envmode=1; continue ;; esac
+    case "$b" in
+      env) envmode=1; continue ;;
+      # k3 bills Kimi's quota through its own wrapper (an `exec claude` with a Kimi token); peeking
+      # it would misread that as an API-key Claude launch. Out of this guard's scope.
+      kimi|kimi-*) KIMI_HIT="$t"; return ;;
+    esac
     envmode=0
     fam=$(resolve_family "$t")
     if [ -n "$fam" ]; then
@@ -220,6 +225,7 @@ esac
 
 scan_tokens argv "<inherit>" "<inherit>" "$@"
 n_launch=${#L_FAM[@]}
+[ -z "$KIMI_HIT" ] || echo "leaf-run: guard: '$KIMI_HIT' is a k3/Kimi launch (Kimi quota) — not account-guarded here." >&2
 
 # Which designated projects does this launch touch? cwd (logical + physical) and every cd/-C target.
 econ_ok=1
@@ -262,7 +268,7 @@ else
     fam="${L_FAM[$i]}" exe="${L_EXE[$i]}"
     if [ "$fam" = claude ]; then
       cc="${L_CC[$i]}"
-      case "$cc" in "<unresolved"*) block "claude launch '$exe' sets CLAUDE_CONFIG_DIR to ${cc#<unresolved:} — not statically resolvable." ;; esac
+      case "$cc" in "<unresolved"*) block "claude launch '$exe' sets CLAUDE_CONFIG_DIR to $(u="${cc#<unresolved:}"; printf "%s" "${u%>}") — not statically resolvable." ;; esac
       x=$(strip_quotes "$exe"); case "$x" in */*) x=$(expand_path "$x") || x="${exe##*/}" ;; esac
       case "$cc" in
         "<inherit>") st=$("$x" auth status 2>/dev/null) ;;
@@ -279,7 +285,7 @@ else
       case "$ch" in
         "<inherit>") ch="${CODEX_HOME:-$HOME/.codex}" ;;
         "<unset>") ch="$HOME/.codex" ;;
-        "<unresolved"*) block "codex launch sets CODEX_HOME to ${ch#<unresolved:} — not statically resolvable." ;;
+        "<unresolved"*) block "codex launch sets CODEX_HOME to $(u="${ch#<unresolved:}"; printf "%s" "${u%>}") — not statically resolvable." ;;
       esac
       [ -z "${CODEX_API_KEY:-}" ] || block "CODEX_API_KEY is set — codex exec would bill the API key, not a subscription."
       who=$("$BIN_DIR/codex-whoami" "$ch") || block "cannot read Codex identity for home '$ch'."
