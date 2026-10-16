@@ -5,6 +5,14 @@
 #
 # Usage: leaf-run --issue <id> --lane <lane> [--expect "<expected output>"] -- <command...>
 # Pair with: leaf-sweep (reconcile starts vs completions; INTERRUPTED candidates = dead PID, no end event).
+#
+# STDIN IS NOT FORWARDED. The command runs in the background ("$@" &) so its PID can be ledgered,
+# and a background job in a non-interactive shell reads /dev/null — `leaf-run ... -- codex exec - <
+# prompt.md` hands codex an EMPTY prompt. Read the prompt inside the command instead:
+#   leaf-run ... -- stdin-from prompt.md codex exec ... -
+#   leaf-run ... -- bash -c 'codex exec ... - < prompt.md'
+#
+# Account guard (below) runs first and exits 3 on a block; tests: claude-code/bin/tests/leaf-run-guard.sh.
 set -uo pipefail
 REG="${LEAF_REGISTRY:-$HOME/.claude/leaf-registry.jsonl}"
 issue="" lane="" expect=""
@@ -19,39 +27,280 @@ while [ $# -gt 0 ]; do
 done
 [ $# -gt 0 ] || { echo "usage: leaf-run --issue <id> --lane <lane> [--expect <output>] -- <cmd...>" >&2; exit 2; }
 
+# ---------------------------------------------------------------------------------------------
 # Account-scoping guard (Mike, 2026-09-18: "utc work on utc accounts only; voidpet work on
-# voidpet accounts only" — PROTOCOL.md lane table). A Claude-family launch from a project
-# tree must bill that project's account; the slot login is volatile state, so read it per
-# launch. Fails CLOSED for projects with a known designation; unknown projects pass with a
-# note. Scar: week-of-Sep-16 voidpet builds billed the UTC-overflow slot unnoticed.
-case "$1" in
-  claude|claude-mk|*/claude|*/claude-mk)
-    slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-    [ "${1##*/}" = "claude-mk" ] && slot_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude-mk}"
-    # Ask the CLI, never a config file (2026-09-24 scar): `oauthAccount` in ~/.claude.json read
-    # mike@voidpet.com while the default slot was actually logged in as the UTC account, and the
-    # default slot has no `$slot_home/.claude.json` at all, so the old jq read came back empty.
-    # The default slot is queried with CLAUDE_CONFIG_DIR unset, exactly as `claude` runs it.
-    if [ "$slot_home" = "$HOME/.claude" ]; then
-      slot_email=$(env -u CLAUDE_CONFIG_DIR claude auth status 2>/dev/null | jq -r '.email // empty')
-    else
-      slot_email=$(CLAUDE_CONFIG_DIR="$slot_home" claude auth status 2>/dev/null | jq -r '.email // empty')
+# voidpet accounts only"; positive allowlist + wrapper/codex coverage 2026-10-16). Every Claude
+# or Codex launch from a designated project tree must bill one of that project's allowed
+# (home, account) pairs, read per launch from the machine-local ~/.claude/model-economics.json
+# (`project_routing._guard` documents the fields). This file is PUBLIC: it names no account and
+# no project routing — edit the local map, never this file. Fails CLOSED for designated projects.
+# Scars: week-of-Sep-16 voidpet builds billed the UTC-overflow slot unnoticed; 2026-10-16 Astra
+# review: the argv[0]-only check was bypassed by `env`/`bash -c` wrappers and never saw codex.
+#
+# What it sees: launches anywhere in argv (prefixes like env/nohup/stdin-from are walked), `env`
+# assignments/-u/-i/-C, `bash|sh|zsh -c` strings (split on ; & | ( ) and newlines, `export`/
+# `unset`/`cd` tracked), claude-* wrappers by name, and other shebang scripts by content. It is a
+# guard against mistakes, not a sandbox: an alias or computed command name it cannot see falls to
+# the lane check (a claude/codex --lane with no visible launch of that family is BLOCKED).
+# Identity is always asked live: Claude via `<exe> auth status` under the launch's own env (never
+# a config file — 2026-09-24 scar), Codex via codex-whoami on the effective CODEX_HOME.
+ECON="$HOME/.claude/model-economics.json"
+BIN_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+block() { echo "leaf-run: BLOCKED — $*" >&2; exit 3; }
+
+strip_quotes() { local t="$1"; t="${t//\"/}"; t="${t//\'/}"; printf '%s' "$t"; }
+
+# expand_path P -> absolute path with ~/$HOME/${HOME} expanded and symlinks resolved when it
+# exists. Fails on any other expansion ($VAR, $(..), `..`): this guard never evaluates code.
+expand_path() {
+  local p; p=$(strip_quotes "$1")
+  case "$p" in "~") p="$HOME" ;; "~/"*) p="$HOME/${p#\~/}" ;; esac
+  p="${p//\$\{HOME\}/$HOME}"; p="${p//\$HOME/$HOME}"
+  case "$p" in ''|*'$'*|*'`'*) return 1 ;; esac
+  case "$p" in /*) ;; *) p="$PWD/$p" ;; esac
+  [ "$p" = / ] || p="${p%/}"
+  if [ -d "$p" ]; then (cd -P "$p" 2>/dev/null && pwd) || printf '%s\n' "$p"; else printf '%s\n' "$p"; fi
+}
+
+# Var value as the guard tracks it: a path, <inherit> (leaf-run's own env), <unset>, <unresolved:..>.
+track_val() { local v; if v=$(expand_path "$1"); then printf '%s' "$v"; else printf '<unresolved:%s>' "$1"; fi; }
+
+L_FAM=(); L_EXE=(); L_CC=(); L_CH=(); DIRS=(); BAD_DIR=""; API_KEY_HIT=""; PEEK_DEPTH=0
+LAST_CC=""; LAST_CH=""
+add_launch() { local n=${#L_FAM[@]}; L_FAM[$n]=$1; L_EXE[$n]=$2; L_CC[$n]=$3; L_CH[$n]=$4; }
+add_dir() { local d; if d=$(expand_path "$1"); then DIRS[${#DIRS[@]}]="$d"; else BAD_DIR="$1"; fi; }
+
+# Follow a symlink chain (macOS readlink has no -f).
+real_of() {
+  local p="$1" t i=0
+  while [ -L "$p" ] && [ $i -lt 20 ]; do
+    t=$(readlink "$p"); case "$t" in /*) p="$t" ;; *) p="$(dirname "$p")/$t" ;; esac; i=$((i + 1))
+  done
+  printf '%s\n' "$p"
+}
+
+# Billed family of a command word: claude (incl. claude-* slot wrappers) or codex, by name or by
+# what the name resolves to on PATH (a symlinked alias of the real binary still counts).
+resolve_family() {
+  local t b p
+  t=$(strip_quotes "$1"); b="${t##*/}"
+  case "$b" in claude|claude-[a-z]*) echo claude; return ;; codex) echo codex; return ;; esac
+  p=$(command -v -- "$t" 2>/dev/null) || return 0
+  case "$p" in /*) ;; *) return 0 ;; esac
+  p=$(real_of "$p")
+  case "$p" in */claude/versions/*) echo claude; return ;; esac
+  case "${p##*/}" in claude|claude-[a-z]*) echo claude ;; codex) echo codex ;; esac
+}
+
+# A codex launch's own -C/--cd moves its project root.
+codex_dirs() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -C|--cd) add_dir "${2:-}"; shift ;;
+      --cd=*) add_dir "${1#--cd=}" ;;
+      -C?*) add_dir "${1#-C}" ;;
+    esac
+    shift
+  done
+}
+
+set_var() {  # set_var NAME VALUE-or-<unset> -> updates caller's cc/ch (dynamic scope)
+  case "$1" in
+    CLAUDE_CONFIG_DIR) cc=$2 ;;
+    CODEX_HOME) ch=$2 ;;
+  esac
+}
+note_assign() {  # note_assign WORD -> handles NAME=VALUE words; returns 1 if not an assignment
+  local w="$1"
+  case "$w" in
+    CLAUDE_CONFIG_DIR=*|CODEX_HOME=*) set_var "${w%%=*}" "$(track_val "${w#*=}")" ;;
+    *_API_KEY=*|ANTHROPIC_AUTH_TOKEN=*) API_KEY_HIT="${w%%=*}" ;;
+    [A-Za-z_]*=*) case "${w%%=*}" in *[!A-Za-z0-9_]*) return 1 ;; esac ;;
+    *) return 1 ;;
+  esac
+}
+
+# Peek a shebang script that is not a known launcher (one level per nesting, depth-capped).
+# Returns 0 if it contained a launch; sets LAST_CC/LAST_CH to its final env either way.
+peek_script() {
+  local t="$1" p before=${#L_FAM[@]}
+  LAST_CC=$cc; LAST_CH=$ch
+  [ $PEEK_DEPTH -lt 3 ] || return 1
+  p=$(command -v -- "$t" 2>/dev/null) || return 1
+  case "$p" in /*) ;; *) return 1 ;; esac
+  p=$(real_of "$p")
+  [ -f "$p" ] && [ "$(head -c 2 "$p" 2>/dev/null)" = '#!' ] || return 1
+  [ "$(wc -c < "$p" | tr -d ' ')" -lt 65536 ] || return 1
+  PEEK_DEPTH=$((PEEK_DEPTH + 1))
+  scan_string "$(sed -E 's/(^|[[:space:]])#.*$//' "$p")" "$cc" "$ch"
+  PEEK_DEPTH=$((PEEK_DEPTH - 1))
+  [ ${#L_FAM[@]} -gt "$before" ]
+}
+
+# scan_tokens MODE CC CH WORD... — find launches in one simple command. MODE argv = real argv;
+# MODE str = whitespace-split words of a shell string (quotes stripped, nested shells walked).
+scan_tokens() {
+  local mode=$1 cc=$2 ch=$3 envmode=0 t b fam
+  shift 3
+  while [ $# -gt 0 ]; do
+    t=$(strip_quotes "$1"); shift
+    if [ $envmode = 1 ]; then
+      case "$t" in
+        -i|--ignore-environment|-) cc="<unset>"; ch="<unset>"; continue ;;
+        -u|--unset) set_var "$(strip_quotes "${1:-}")" "<unset>"; [ $# -gt 0 ] && shift; continue ;;
+        --unset=*) set_var "${t#--unset=}" "<unset>"; continue ;;
+        -u?*) set_var "${t#-u}" "<unset>"; continue ;;
+        -C|--chdir) add_dir "${1:-}"; [ $# -gt 0 ] && shift; continue ;;
+        --chdir=*) add_dir "${t#--chdir=}"; continue ;;
+        -S|--split-string) scan_string "${1:-}" "$cc" "$ch"; return ;;
+        -*) continue ;;
+      esac
     fi
-    echo "leaf-run: slot '$slot_home' bills '${slot_email:-<unknown>}'" >&2
-    case "$PWD" in
-      "$HOME/projects/work/utc"*)
-        if [ -z "$slot_email" ] || [ "$slot_email" = "mike@voidpet.com" ]; then
-          echo "leaf-run: BLOCKED — UTC work must bill a UTC account; slot '$slot_home' is logged in as '${slot_email:-<none>}'." >&2
-          exit 3
-        fi ;;
-      "$HOME/projects/work/voidpet-poc"*)
-        if [ "$slot_email" != "mike@voidpet.com" ]; then
-          echo "leaf-run: BLOCKED — voidpet work must bill the voidpet account; slot '$slot_home' is logged in as '${slot_email:-<none>}'." >&2
-          echo "leaf-run: create/use the voidpet slot: CLAUDE_CONFIG_DIR=\$HOME/.claude-voidpet (login: CLAUDE_CONFIG_DIR=~/.claude-voidpet claude login)" >&2
-          exit 3
-        fi ;;
-    esac ;;
+    note_assign "$t" && continue
+    b="${t##*/}"
+    case "$b" in env) envmode=1; continue ;; esac
+    envmode=0
+    fam=$(resolve_family "$t")
+    if [ -n "$fam" ]; then
+      add_launch "$fam" "$t" "$cc" "$ch"
+      [ "$fam" = codex ] && codex_dirs "$@"
+      return   # everything after is the launched tool's own arguments
+    fi
+    case "$b" in
+      bash|sh|zsh|dash|ksh)
+        [ "$mode" = str ] && continue   # the -c string's words follow as plain tokens
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            -o|+o|-O|+O) shift; [ $# -gt 0 ] && shift ;;
+            --*|+*) shift ;;
+            -*c*) scan_string "${2:-}" "$cc" "$ch"; return ;;
+            -*) shift ;;
+            *) peek_script "$1" || true; return ;;   # `bash script.sh`
+          esac
+        done
+        return ;;
+    esac
+    if peek_script "$t"; then return; fi
+    cc=$LAST_CC; ch=$LAST_CH   # a non-launching wrapper (e.g. stdin-from) may still set env
+  done
+}
+
+# scan_string STR CC CH — split a shell string into simple commands and scan each.
+scan_string() {
+  local cc=$2 ch=$3 seg w first s
+  s=$(printf '%s' "$1" | tr ';&|()`' '\n\n\n\n\n\n')
+  while IFS= read -r seg; do
+    set -f; set -- $seg; set +f
+    [ $# -gt 0 ] || continue
+    first=$(strip_quotes "$1")
+    case "$first" in
+      export|declare|typeset|readonly|local)
+        shift; for w in "$@"; do note_assign "$(strip_quotes "$w")" || true; done; continue ;;
+      unset)
+        shift; for w in "$@"; do set_var "$(strip_quotes "$w")" "<unset>"; done; continue ;;
+      cd|pushd)
+        [ $# -ge 2 ] && add_dir "$2"; continue ;;
+    esac
+    # A segment of bare assignments persists for the rest of the string.
+    local all=1
+    for w in "$@"; do case "$(strip_quotes "$w")" in [A-Za-z_]*=*) ;; *) all=0 ;; esac; done
+    if [ $all = 1 ]; then for w in "$@"; do note_assign "$(strip_quotes "$w")" || true; done; continue; fi
+    scan_tokens str "$cc" "$ch" "$@"
+  done <<< "$s"
+  LAST_CC=$cc; LAST_CH=$ch
+}
+
+lane_fam=""
+case "$lane" in
+  codex*|gpt-*|*astra*|*terra*|*luna*) lane_fam=codex ;;
+  fable*|opus*|sonnet*|haiku*|claude*) lane_fam=claude ;;
 esac
+
+scan_tokens argv "<inherit>" "<inherit>" "$@"
+n_launch=${#L_FAM[@]}
+
+# Which designated projects does this launch touch? cwd (logical + physical) and every cd/-C target.
+econ_ok=1
+proj_paths=$(jq -er '.project_routing | to_entries[] | select(.value | type == "object")
+  | .key as $k | (.value.paths // [])[] | [$k, .] | @tsv' "$ECON" 2>/dev/null) || econ_ok=0
+projects=""
+add_projects_for() {
+  local d="$1" k p
+  while IFS=$'\t' read -r k p; do
+    [ -n "$k" ] || continue
+    p=$(expand_path "$p") || continue
+    case "$d" in "$p"*) case " $projects " in *" $k "*) ;; *) projects="$projects $k" ;; esac ;; esac
+  done <<< "$proj_paths"
+}
+if [ $econ_ok = 1 ]; then
+  add_projects_for "$PWD"; add_projects_for "$(pwd -P)"
+  i=0; while [ $i -lt ${#DIRS[@]} ]; do add_projects_for "${DIRS[$i]}"; i=$((i + 1)); done
+fi
+projects="${projects# }"
+
+if [ $econ_ok = 0 ]; then
+  if [ $n_launch -gt 0 ] || [ -n "$lane_fam" ]; then
+    block "cannot read project routing from $ECON — billed launches fail closed without it."
+  fi
+elif [ -n "$BAD_DIR" ] && [ $n_launch -gt 0 ]; then
+  block "cd/-C target '$BAD_DIR' is not statically resolvable, so the billing project is unknown."
+elif [ -z "$projects" ]; then
+  [ $n_launch -gt 0 ] && echo "leaf-run: guard: no designated project for $PWD — accounts not checked." >&2
+else
+  [ -n "$lane" ] || block "--lane is required for launches in designated projects ($projects)."
+  if [ -n "$lane_fam" ]; then
+    seen=0; i=0
+    while [ $i -lt $n_launch ]; do [ "${L_FAM[$i]}" = "$lane_fam" ] && seen=1; i=$((i + 1)); done
+    [ $seen = 1 ] || block "lane '$lane' is a $lane_fam lane but no $lane_fam launch is visible in the command (alias, computed name, or opaque script?). Invoke the CLI directly, via env, bash -c, or a claude-* slot wrapper."
+  fi
+  [ -z "$API_KEY_HIT" ] || block "the launch sets $API_KEY_HIT — leaves bill subscriptions, never API keys."
+
+  i=0
+  while [ $i -lt $n_launch ]; do
+    fam="${L_FAM[$i]}" exe="${L_EXE[$i]}"
+    if [ "$fam" = claude ]; then
+      cc="${L_CC[$i]}"
+      case "$cc" in "<unresolved"*) block "claude launch '$exe' sets CLAUDE_CONFIG_DIR to ${cc#<unresolved:} — not statically resolvable." ;; esac
+      x=$(strip_quotes "$exe"); case "$x" in */*) x=$(expand_path "$x") || x="${exe##*/}" ;; esac
+      case "$cc" in
+        "<inherit>") st=$("$x" auth status 2>/dev/null) ;;
+        "<unset>")   st=$(env -u CLAUDE_CONFIG_DIR "$x" auth status 2>/dev/null) ;;
+        *)           st=$(CLAUDE_CONFIG_DIR="$cc" "$x" auth status 2>/dev/null) ;;
+      esac
+      IFS=$'\t' read -r home email method <<< "$(printf '%s' "$st" | jq -r '[.configDirectory // "", .email // "", .authMethod // ""] | @tsv' 2>/dev/null)"
+      [ -n "${email:-}" ] || block "'$x auth status' returned no account (not logged in, or not a Claude CLI)."
+      [ -n "${home:-}" ] || home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+      [ "$method" = "claude.ai" ] || block "claude launch '$exe' authenticates via '${method:-<none>}', not a claude.ai subscription."
+      sel='($r.claude_slots // [])[] as $s | .claude_slots[$s] // {} | [.config_home // "", .account // .account_last_verified // ""]'
+    else
+      ch="${L_CH[$i]}"
+      case "$ch" in
+        "<inherit>") ch="${CODEX_HOME:-$HOME/.codex}" ;;
+        "<unset>") ch="$HOME/.codex" ;;
+        "<unresolved"*) block "codex launch sets CODEX_HOME to ${ch#<unresolved:} — not statically resolvable." ;;
+      esac
+      [ -z "${CODEX_API_KEY:-}" ] || block "CODEX_API_KEY is set — codex exec would bill the API key, not a subscription."
+      who=$("$BIN_DIR/codex-whoami" "$ch") || block "cannot read Codex identity for home '$ch'."
+      IFS=$'\t' read -r home email method <<< "$(printf '%s' "$who" | jq -r '[.home // "", .email // "", .auth_mode // ""] | @tsv')"
+      [ "$method" = chatgpt ] || block "codex home '$ch' auth_mode is '${method:-<none>}', not a ChatGPT subscription."
+      sel='($r.codex_homes // [])[] as $h | .codex_homes[$h] // {} | [.home // "", .account // ""]'
+    fi
+    home=$(expand_path "$home") || home="?"
+    for p in $projects; do
+      ok=0 allowed=""
+      while IFS=$'\t' read -r ah aa; do
+        [ -n "$ah" ] || continue
+        ah=$(expand_path "$ah") || continue
+        allowed="$allowed ${ah/#$HOME/~}=$aa"
+        if [ "$ah" = "$home" ] && [ "$(printf '%s' "$aa" | tr 'A-Z' 'a-z')" = "$(printf '%s' "$email" | tr 'A-Z' 'a-z')" ]; then ok=1; fi
+      done <<< "$(jq -r --arg p "$p" ".project_routing[\$p] as \$r | $sel | @tsv" "$ECON" 2>/dev/null)"
+      [ $ok = 1 ] || block "$p $fam launch '$exe' would bill home '${home/#$HOME/~}' as '$email'; allowed for $p:${allowed:- <none configured>} (edit $ECON to change routing)."
+      echo "leaf-run: guard OK — $fam '$exe': ${home/#$HOME/~} bills $email ($method), allowed for $p." >&2
+    done
+    i=$((i + 1))
+  done
+fi
 
 "$@" &
 pid=$!
