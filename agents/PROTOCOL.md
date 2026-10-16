@@ -10,6 +10,8 @@ ACTIVE REGIME: `director` (2026-07-19). CURRENT SEAT and fallback/recovery signa
 
 Mode FIRST: preamble-prefixed prompt = LEAF; obey it, no director authority. Otherwise Codex = SOLO: direct work, no delegation/logging unless Mike or applicable project/skill instructions request it; retain repo/worktree safety, honest verification, Ultra/fast bans, own diff-read and bot sweep. Read runtime adapter at start. Claude directors apply delegation-value test. Leaves never touch claims/nest writers; only the preamble's bounded Codex read-only fan-out exception applies.
 
+PRIMARY INTERFACE (Mike, 2026-10-16): Mike works primarily in T3 Code. Detect it from the `<runtime_info>` line "running in T3 Code" and read `runtime-t3.md` at session start. A Mike-started, non-leaf T3 thread keeps its runtime's existing mode (Claude → director; Codex → solo unless asked); the preamble discriminator still wins, so host or thread visibility never upgrades a leaf. T3 is a host, not a lane or quota pool; every kernel rule applies. Settling a T3 thread STOPS its session — never settle (or let auto-settle settle) a thread holding an outstanding obligation until an acknowledged successor owns it.
+
 ## Delegation and lanes
 
 Delegate for independent parallelism, context isolation, tool/capability fit or savings INCLUDING specification/review overhead. Keep short, ambiguous, cheaper-to-finish or judgment-coupled work inline. Keep intent/decomposition, architecture/design decisions, security judgment, user conversation, output review and verify≈solve with director: can I verify without redoing it? Same-model fresh context is not a capability upgrade.
@@ -129,3 +131,4 @@ Read relative paths BEFORE acting; triggers grant no authority.
 - Read `~/.config/agents/modules/runtime-claude.md` WHEN Claude session start or Agent/Workflow/remote launch; wrapper details are separate below.
 - Read `~/.config/agents/modules/runtime-k3-wrapper.md` WHEN explicit k3 launch/troubleshooting or any vendor-wrapper work (auth/interactive probes).
 - Read `~/.config/agents/modules/runtime-codex.md` WHEN Codex session start or native/exec/cloud/Claude-consult routing/accounting.
+- Read `~/.config/agents/modules/runtime-t3.md` WHEN the session runs in T3 Code, before settling/archiving a T3 thread, or when proposing parallel workstreams to Mike.
