@@ -50,6 +50,7 @@ BIN_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 block() { echo "leaf-run: BLOCKED — $*" >&2; exit 3; }
 
 strip_quotes() { local t="$1"; t="${t//\"/}"; t="${t//\'/}"; printf '%s' "$t"; }
+short() { case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;; *) printf '%s' "$1" ;; esac; }
 
 # expand_path P -> absolute path with ~/$HOME/${HOME} expanded and symlinks resolved when it
 # exists. Fails on any other expansion ($VAR, $(..), `..`): this guard never evaluates code.
