@@ -292,11 +292,11 @@ else
       while IFS=$'\t' read -r ah aa; do
         [ -n "$ah" ] || continue
         ah=$(expand_path "$ah") || continue
-        allowed="$allowed ${ah/#$HOME/~}=$aa"
+        allowed="$allowed $(short "$ah")=$aa"
         if [ "$ah" = "$home" ] && [ "$(printf '%s' "$aa" | tr 'A-Z' 'a-z')" = "$(printf '%s' "$email" | tr 'A-Z' 'a-z')" ]; then ok=1; fi
       done <<< "$(jq -r --arg p "$p" ".project_routing[\$p] as \$r | $sel | @tsv" "$ECON" 2>/dev/null)"
-      [ $ok = 1 ] || block "$p $fam launch '$exe' would bill home '${home/#$HOME/~}' as '$email'; allowed for $p:${allowed:- <none configured>} (edit $ECON to change routing)."
-      echo "leaf-run: guard OK — $fam '$exe': ${home/#$HOME/~} bills $email ($method), allowed for $p." >&2
+      [ $ok = 1 ] || block "$p $fam launch '$exe' would bill home '$(short "$home")' as '$email'; allowed for $p:${allowed:- <none configured>} (edit $ECON to change routing)."
+      echo "leaf-run: guard OK — $fam '$exe': $(short "$home") bills $email ($method), allowed for $p." >&2
     done
     i=$((i + 1))
   done
