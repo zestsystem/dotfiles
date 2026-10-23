@@ -249,6 +249,22 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/6d3702243441165a03f699f64416f635220f4f15.tar.gz"
       }
     },
+    "nixpkgs-node": {
+      "locked": {
+        "lastModified": 1792729865,
+        "narHash": "sha256-QONBM/0latMpiRmr16W89iEy91j/DN+WcGCEsUr6eTI=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "3a740d481af408c8a587d626516e1a96e80d0375",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "3a740d481af408c8a587d626516e1a96e80d0375",
+        "type": "github"
+      }
+    },
     "nixpkgs_2": {
       "locked": {
         "lastModified": 1761236834,
@@ -336,6 +352,7 @@
         "home-manager": "home-manager",
         "mac-app-util": "mac-app-util",
         "nixpkgs": "nixpkgs_5",
+        "nixpkgs-node": "nixpkgs-node",
         "zestsystem-nvim": "zestsystem-nvim"
       }
     },

@@ -9,6 +9,8 @@
     home-manager.url = "github:nix-community/home-manager";
     mac-app-util.url = "github:hraban/mac-app-util";
     nixpkgs.url = "github:NixOS/nixpkgs/master";
+    # Node 22.23.4 security floor (2026-10-23, CVE-2026-111497 Brotli RCE) without bumping all of nixpkgs.
+    nixpkgs-node.url = "github:NixOS/nixpkgs/3a740d481af408c8a587d626516e1a96e80d0375";
     zestsystem-nvim.url = "github:zestsystem/zestsystem.nvim";
   };
 

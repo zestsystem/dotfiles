@@ -267,7 +267,9 @@ in
       wt = "git worktree";
 
       # Use 'bunx' to run commands from the bun package manager
-      opencode = "bunx opencode-ai";
+      # Pinned (2026-10-23): bare `bunx opencode-ai` pulled the newest npm release on every run. Bump
+      # deliberately to a release at least ~3 days old.
+      opencode = "bunx opencode-ai@1.19.1";
     }
     // lib.optionalAttrs isDarwin {
       codex = "/Applications/ChatGPT.app/Contents/Resources/codex";
