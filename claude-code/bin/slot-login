@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# slot-login <slot> — sign a Claude credential slot in to ITS account, then prove it.
+# The expected account comes from the machine-local map (~/.claude/model-economics.json
+# `claude_slots[<slot>]`); this file is PUBLIC and names no account.
+#
+# Why (2026-10-25): a plain `claude auth login` signs in whatever account the browser already has on
+# claude.ai. With the browser on the employer account all day, every "fix" of the default slot
+# re-signed it to the employer account and reported "Login successful". This passes the expected
+# email to the login page and refuses to call it done until `claude auth status` shows that account.
+#
+# Usage: slot-login [default|claude-mk|voidpet|...]   (default: default)
+set -uo pipefail
+
+slot="${1:-default}"
+map="$HOME/.claude/model-economics.json"
+read -r home expected < <(python3 -I - "$map" "$slot" <<'EOF'
+import json, os, sys
+slot = json.load(open(sys.argv[1])).get("claude_slots", {}).get(sys.argv[2])
+if not isinstance(slot, dict) or not slot.get("config_home") or not slot.get("account_last_verified"):
+    sys.exit(1)
+print(os.path.expanduser(slot["config_home"]), slot["account_last_verified"])
+EOF
+) || { echo "slot-login: no slot '$slot' with config_home + account_last_verified in $map" >&2; exit 2; }
+
+run() {
+  if [ "$home" = "$HOME/.claude" ]; then env -u CLAUDE_CONFIG_DIR claude "$@"; else CLAUDE_CONFIG_DIR="$home" claude "$@"; fi
+}
+
+echo "Signing slot '$slot' ($home) in to $expected."
+echo "If the browser page shows a different account, switch accounts on that page (or open the link in"
+echo "the browser profile signed in to $expected) before approving. Approve the keychain prompt (Always Allow)."
+run auth login --claudeai --email "$expected" || { echo "slot-login: claude auth login failed" >&2; exit 1; }
+
+actual="$(run auth status 2>/dev/null | python3 -I -c 'import json,sys
+try:
+    j = json.load(sys.stdin)
+    print(j.get("email") if j.get("loggedIn") else "logged-out")
+except Exception:
+    print("unknown")')"
+if [ "$actual" != "$expected" ]; then
+  echo "" >&2
+  echo "✗ slot '$slot' is signed in as $actual, NOT $expected." >&2
+  echo "  The browser approved the account it was already signed in to. Sign that browser in to" >&2
+  echo "  $expected on claude.ai (or use the matching browser profile), then run: slot-login $slot" >&2
+  exit 1
+fi
+echo "✓ slot '$slot' is signed in as $expected."

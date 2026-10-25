@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# slot-check — is every Claude credential slot still signed in to the account it is meant for?
+# Reads the expected accounts from the machine-local map (~/.claude/model-economics.json
+# `claude_slots[<name>].config_home` + `.account_last_verified`); this file is PUBLIC and names no account.
+#
+# Why (2026-10-25): the default slot silently drifted to the employer account again. A plain
+# `claude auth login` signs in whatever account the browser already has on claude.ai, and desktop-app
+# sessions carry their own account, so nothing noticed until `just review` refused hours later.
+# Run by a launchd agent every 30 min so a flip is caught, and timestamped, within the half hour.
+#
+# Usage: slot-check [--notify] [--quiet]
+#   exit 0 = every slot matches, 1 = drift (or a slot is logged out), 2 = map unreadable.
+#   --notify  post a macOS notification on drift. --quiet  print only drift lines.
+# Every run appends one line per slot to ~/.claude/slot-check.log (account names only, never tokens).
+set -uo pipefail
+
+notify=0 quiet=0
+for arg in "$@"; do
+  case "$arg" in
+    --notify) notify=1 ;;
+    --quiet) quiet=1 ;;
+    *) echo "usage: slot-check [--notify] [--quiet]" >&2; exit 2 ;;
+  esac
+done
+
+map="$HOME/.claude/model-economics.json"
+log="$HOME/.claude/slot-check.log"
+slots="$(python3 -I - "$map" <<'EOF'
+import json, os, sys
+try:
+    slots = json.load(open(sys.argv[1])).get("claude_slots", {})
+except Exception as error:
+    print(f"slot-check: cannot read {sys.argv[1]}: {error}", file=sys.stderr)
+    sys.exit(2)
+for name, slot in slots.items():
+    if isinstance(slot, dict) and slot.get("config_home") and slot.get("account_last_verified"):
+        print(name, os.path.expanduser(slot["config_home"]), slot["account_last_verified"], sep="\t")
+EOF
+)" || exit 2
+[ -n "$slots" ] || { echo "slot-check: no claude_slots in $map" >&2; exit 2; }
+
+now="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+drift=()
+while IFS=$'\t' read -r name home expected; do
+  if [ "$home" = "$HOME/.claude" ]; then
+    status="$(env -u CLAUDE_CONFIG_DIR claude auth status 2>/dev/null)"
+  else
+    status="$(CLAUDE_CONFIG_DIR="$home" claude auth status 2>/dev/null)"
+  fi
+  actual="$(printf '%s' "$status" | python3 -I -c 'import json,sys
+try:
+    j = json.load(sys.stdin)
+    print(j.get("email") if j.get("loggedIn") else "logged-out")
+except Exception:
+    print("unknown")')"
+  if [ "$actual" = "$expected" ]; then
+    verdict=ok
+  else
+    verdict=DRIFT
+    drift+=("$name: expected $expected, signed in as $actual")
+  fi
+  printf '%s\t%s\t%s\texpected=%s\tactual=%s\n' "$now" "$verdict" "$name" "$expected" "$actual" >> "$log"
+  if [ "$verdict" = DRIFT ] || [ "$quiet" = 0 ]; then
+    printf '%-6s %-10s expected %-28s actual %s\n' "$verdict" "$name" "$expected" "$actual"
+  fi
+done <<< "$slots"
+
+if [ "${#drift[@]}" -gt 0 ]; then
+  if [ "$notify" = 1 ]; then
+    message="$(printf '%s; ' "${drift[@]}")"
+    osascript -e "display notification \"${message//\"/} Fix: slot-login <slot>\" with title \"Claude slot drift\" sound name \"Basso\"" >/dev/null 2>&1 || true
+  fi
+  exit 1
+fi
+exit 0
