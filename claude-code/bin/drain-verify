@@ -29,13 +29,23 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 note() { echo "$(date +%FT%T%z) $*" | tee -a "$REPORT"; }
 
-ran=0; passed=0; failed=0; skipped=0
+ran=0; passed=0; failed=0; skipped=0; manual=0
 for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
   entry=$(jq -c --arg id "$id" 'select(.id==$id)' "$Q" | head -1)
   cwd=$(echo "$entry" | jq -r .cwd)
   runcmd=$(echo "$entry" | jq -r .run)
   precheck=$(echo "$entry" | jq -r .precheck)
   entnote=$(echo "$entry" | jq -r .note)
+
+  # MANUAL entries (`echo 'MANUAL: …' && false`) are human steps parked in the queue on purpose.
+  # Running them can only print the note and exit 1, so counting them as FAILs buried real
+  # anchor failures in noise (2026-10-26 drain: 0/25 "passed", 19 of 71 pending were MANUAL).
+  # List them as owed, never run or fail-count them; the age escalation below still surfaces
+  # ones left >=14d.
+  if printf '%s' "$runcmd" | grep -qE "^[[:space:]]*echo[[:space:]]+['\"]MANUAL"; then
+    note "MANUAL  $id ($entnote): human step owed — not run"
+    manual=$((manual+1)); continue
+  fi
 
   if [ ! -d "$cwd" ]; then
     note "STALE   $id ($entnote): cwd gone ($cwd) — marking stale, needs re-queue against a live worktree"
@@ -82,7 +92,7 @@ for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
      "$Q" > "$tmp" && mv "$tmp" "$Q"
 done
 
-note "SUMMARY ran=$ran passed=$passed failed=$failed skipped=$skipped pending_left=$(jq -rs '[.[]|select(.status=="pending")]|length' "$Q")"
+note "SUMMARY ran=$ran passed=$passed failed=$failed skipped=$skipped manual=$manual pending_left=$(jq -rs '[.[]|select(.status=="pending")]|length' "$Q")"
 
 # Escalation (2026-08-20 — audit finding: the queue was write-only; fails=51 entries cycled
 # silently and a 0-pass drain was just a log line). Two thresholds turn debt into a surfaced
