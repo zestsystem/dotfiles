@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# director-preflight — can this host's agent tooling actually run? Warns, never halts.
+#
+# Why (2026-10-26): merges fell to near zero 10-20 → 10-24. The pipeline was fine; the tools under it were broken:
+# a ChatGPT.app update moved the codex binary (old ~/.local/bin symlink dangled, `just review` died ENOENT), the
+# default Claude slot drifted to another account, and `just land` ran outside the dev shell without pnpm.
+# Nothing noticed until a gate refused hours later. Mike: "instead of stopping work still warn me but dont halt",
+# and "if codex isnt working claude should assume to use just claude".
+#
+# Run at director/session start and at every heartbeat. Every check prints OK, FIXED or WARN; the exit status is
+# always 0. A director that sees WARN tells Mike in its next message and keeps working:
+#   - codex WARN  → route every Codex lane to the Claude equivalent for this session (review already does this).
+#   - others      → keep working on what still runs; name what is degraded.
+#
+# Usage: director-preflight [--repo DIR] [--notify] [--quiet]
+#   --repo DIR  check the dev shell for this checkout (default: current dir if it has a flake.nix).
+#   --notify    macOS notification when anything warns.  --quiet  print only WARN/FIXED lines and the summary.
+# This file is PUBLIC: it names no account; Claude accounts come from slot-check's machine-local map.
+set -uo pipefail
+
+repo="" notify=0 quiet=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --repo) repo="${2:-}"; shift 2 ;;
+    --notify) notify=1; shift ;;
+    --quiet) quiet=1; shift ;;
+    *) echo "usage: director-preflight [--repo DIR] [--notify] [--quiet]" >&2; exit 0 ;;
+  esac
+done
+[ -z "$repo" ] && [ -f "$PWD/flake.nix" ] && repo="$PWD"
+
+bin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+warns=()
+say() { # level check message
+  if [ "$1" = WARN ]; then warns+=("$2: $3"); fi
+  if [ "$quiet" = 0 ] || [ "$1" != OK ]; then printf '%-5s %-8s %s\n' "$1" "$2" "$3"; fi
+}
+# Bounded run: a hung CLI must not hang the preflight.
+run_bounded() { # seconds cmd...
+  local secs="$1"; shift
+  perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+}
+
+# --- codex -------------------------------------------------------------------------------------------------------
+codex_candidates=(
+  "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+  "$HOME/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+  "/opt/homebrew/bin/codex"
+  "/usr/local/bin/codex"
+)
+codex_path="$(command -v codex 2>/dev/null || true)"
+# command -v can return a dangling symlink; only an executable target counts.
+if [ -n "$codex_path" ] && [ ! -x "$codex_path" ]; then codex_path=""; fi
+if [ -z "$codex_path" ]; then
+  for candidate in "${codex_candidates[@]}"; do
+    if [ -x "$candidate" ]; then codex_path="$candidate"; break; fi
+  done
+  link="$HOME/.local/bin/codex"
+  if [ -n "$codex_path" ] && [ -L "$link" ] && [ ! -e "$link" ]; then
+    # Repair only the known-dangling user symlink, and only toward a real binary.
+    if ln -sfn "$codex_path" "$link" 2>/dev/null; then
+      say FIXED codex "repointed dangling $link → $codex_path"
+    fi
+  fi
+fi
+if [ -z "$codex_path" ]; then
+  say WARN codex "no codex binary on PATH or in ChatGPT.app — use Claude lanes only; review runs family A on Claude"
+else
+  status="$(run_bounded 30 "$codex_path" login status 2>&1 || true)"
+  if printf '%s' "$status" | grep -qi 'logged in using chatgpt'; then
+    say OK codex "$codex_path (ChatGPT login)"
+  else
+    first="$(printf '%s' "$status" | head -1)"
+    say WARN codex "$codex_path not usable (${first:-no status}) — use Claude lanes only; run \`codex login\`"
+  fi
+fi
+
+# --- Claude slots (accounts from the machine-local map) -----------------------------------------------------------
+if [ -x "$bin_dir/slot-check" ]; then
+  drift="$(run_bounded 60 "$bin_dir/slot-check" --quiet 2>&1)"
+  rc=$?
+  if [ "$rc" = 0 ]; then
+    say OK claude "every credential slot on its expected account"
+  elif [ "$rc" = 1 ]; then
+    say WARN claude "slot drift: $(printf '%s' "$drift" | tr '\n' ' ') — fix: slot-login <slot>"
+  else
+    say WARN claude "slot-check could not run (rc=$rc): $(printf '%s' "$drift" | head -1)"
+  fi
+else
+  say WARN claude "slot-check missing at $bin_dir/slot-check"
+fi
+
+# --- dev shell ----------------------------------------------------------------------------------------------------
+if [ -n "$repo" ]; then
+  if ! command -v nix >/dev/null 2>&1; then
+    say WARN devshell "nix not on PATH — repo recipes needing pnpm/node will fail"
+  elif [ -n "${IN_NIX_SHELL:-}" ] && command -v pnpm >/dev/null 2>&1; then
+    say OK devshell "inside the nix dev shell (node $(node -v 2>/dev/null), pnpm $(pnpm -v 2>/dev/null))"
+  else
+    say OK devshell "not inside the dev shell; run repo recipes via \`nix develop -c …\` (just land now re-enters it itself)"
+  fi
+fi
+
+# --- container engine ---------------------------------------------------------------------------------------------
+if command -v docker >/dev/null 2>&1; then
+  if run_bounded 15 docker info >/dev/null 2>&1; then
+    say OK docker "engine answering"
+  else
+    say WARN docker "engine down or hung — DB tests and e2e will fail; restart: open -ga OrbStack"
+  fi
+fi
+
+# --- gh -----------------------------------------------------------------------------------------------------------
+if run_bounded 20 gh auth status >/dev/null 2>&1; then
+  say OK gh "authenticated"
+else
+  say WARN gh "gh auth status failed — PR, land and review steps will fail"
+fi
+
+# --- summary ------------------------------------------------------------------------------------------------------
+if [ "${#warns[@]}" -gt 0 ]; then
+  printf 'PREFLIGHT: %d warning(s) — keep working; tell Mike: %s\n' "${#warns[@]}" "$(printf '%s; ' "${warns[@]}")"
+  if [ "$notify" = 1 ]; then
+    message="$(printf '%s; ' "${warns[@]}")"
+    osascript -e "display notification \"${message//\"/}\" with title \"Agent preflight warnings\" sound name \"Basso\"" >/dev/null 2>&1 || true
+  fi
+else
+  printf 'PREFLIGHT: all clear\n'
+fi
+exit 0

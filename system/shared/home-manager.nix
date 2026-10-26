@@ -272,7 +272,8 @@ in
       opencode = "bunx opencode-ai@1.19.1";
     }
     // lib.optionalAttrs isDarwin {
-      codex = "/Applications/ChatGPT.app/Contents/Resources/codex";
+      # ChatGPT.app moved the CLI into codex-cli/bin (2026-10); the old Resources/codex path no longer exists.
+      codex = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex";
     };
 
     plugins = [
