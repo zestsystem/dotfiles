@@ -70,6 +70,7 @@ Orchestrator hygiene (full conditions/scars in modules):
 - Update directly affected e2e specs in the UI-changing PR, review spec hunks separately, and supply direct-impact rc=0; no weakened assertion/timeout/skip without required justification (2026-09-03).
 - Check CURRENT reference and rendered per-platform fidelity before UI merge; unexplained material differences block, regression conflicts go to designer/human (2026-08-26/27).
 - Sweep ledger/orphans/QA intake at start; boot implies teardown and created-device deletion except named pools; check headroom and container-engine health before heavy work (2026-07-31).
+- Every heavy local PHASE (DB/browser suites, full typecheck, e2e/docker/simulator runs) runs via `heavy-gate run` (host-wide flock lease + gauge from `agents/heavy-gate.conf`; `check` is advisory). Gated → the director routes it off-host: Claude cloud agent first (cheapest; node/pnpm repo work; the project's disabled, connector-cleared template routine via `RemoteTrigger` update+run, never Agent remote isolation (ran locally 2026-10-27); fingerprint step 1), then CI (nix-pinned gates, DB/browser infra, macOS simulators), then Codex Cloud; a leaf returns `GATED:` and never dispatches; no cloud path → `defer-verify` wrapping `heavy-gate run`. Never busy-wait; free your own dead stacks first; never touch other sessions' processes (Mike 2026-10-27; execution-substrates).
 - Declare owner/cadence+timezone/input/output/approval/missing-data behavior/idempotent retries for every recurring job; default batch/report, justify cadence <1h (2026-08-27).
 - Turn twice-escaped or mechanical checks into repo gates; freeze the 2nd–3rd repeated operational flow into a skill with its approval field (2026-07-28; 2026-08-27).
 - Log/grade every delegation, director outcomes separately, and run fresh-context challenge before adopting significant routing/authority/seat/review changes (2026-09-05).
@@ -113,7 +114,7 @@ Read relative paths BEFORE acting; triggers grant no authority.
 - Read `~/.config/agents/modules/codex-lanes-and-weekly-limits.md` WHEN Codex/k3 launch, effort choice, quota/reset failure or lane-generation/settings change.
 - Read `~/.config/agents/modules/claude-lanes-and-economics.md` WHEN ANY billed Claude launch, UI fallback/account choice, model screening or cache/cost experiment.
 - Read `~/.config/agents/modules/handoff-and-decomposition.md` WHEN ANY handoff, wave plan, writer declaration or lane-settings onboarding.
-- Read `~/.config/agents/modules/execution-substrates.md` WHEN remote/local/box choice, local capacity limits, host-surviving work, logout with running work, or ANY T3 Code instance/account-home work.
+- Read `~/.config/agents/modules/execution-substrates.md` WHEN remote/local/box choice, local capacity limits or a `heavy-gate` refusal, host-surviving work, logout with running work, or ANY T3 Code instance/account-home work.
 - Read `~/.config/agents/modules/work-compilation.md` WHEN epic pickup (~5+ units), edge release, replan or ANY deferred verification.
 - Read `~/.config/agents/modules/review-ladder-and-automation.md` WHEN handoff acceptance, review/controls selection, UI selector/spec edits, repeated-flow automation or recurring jobs.
 - Read `~/.config/agents/modules/fan-in-and-ledger.md` WHEN bash-leaf launch, session start, fan-in or logout/shutdown.

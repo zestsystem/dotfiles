@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""heavy-gate: the host-wide admission gate for HEAVY local runs.
+
+Heavy means:
+- test suites against a DB or a browser;
+- a full-monorepo typecheck or build;
+- e2e and docker stack runs;
+- simulator or emulator sessions.
+
+The policy is in ~/.config/agents/modules/execution-substrates.md, under "Headroom gate".
+
+Usage:
+  heavy-gate run [--label L] -- CMD...   admit (lease + gauge), then exec CMD; gated: exit 75, CMD never starts
+  heavy-gate check                       ADVISORY ONLY (reserves nothing): exit 0 if run would admit now, else 75
+  heavy-gate status                      gauge readings, thresholds and current lease holders
+
+Every decision prints one machine-readable line on stderr, so a caller can tell "gated" from a command
+that itself exited 75:
+  HEAVY_GATE=admitted slot=N label=... [unavailable=memory]
+  HEAVY_GATE=inherited slot=N            (nested call inside a run that already holds a lease)
+  HEAVY_GATE=gated reason=...
+
+Lease: a kernel flock on <state>/slot-N.lock. CMD is exec'd with the lock fd inherited, so the lease is held
+by CMD and every child that keeps the fd. It is released automatically when the last of them exits or is
+killed: there is no stale-lease reclamation and no pid-reuse window. A DETACHED resource (`docker compose up -d`,
+a booted simulator) outlives the lease, so run it through a foreground command that also tears it down.
+
+Thresholds come from one host-wide file, ~/.config/agents/heavy-gate.conf (key=value: min_mem_free_pct,
+max_load_per_core, min_disk_free_pct, slots). HEAVY_GATE_CONF and HEAVY_GATE_STATE_DIR exist for the test
+suite only.
+"""
+import fcntl
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import time
+
+EX_GATED = 75
+CONF = os.environ.get("HEAVY_GATE_CONF") or os.path.expanduser("~/.config/agents/heavy-gate.conf")
+STATE = os.environ.get("HEAVY_GATE_STATE_DIR") or "/tmp/agents-heavy-gate"  # /tmp: writable from leaf sandboxes too
+DEFAULTS = {"min_mem_free_pct": 30.0, "max_load_per_core": 0.67, "min_disk_free_pct": 10.0, "slots": 1.0}
+
+
+def emit(line):
+    print(line, file=sys.stderr, flush=True)
+
+
+def load_conf():
+    conf = dict(DEFAULTS)
+    if os.path.exists(CONF):
+        for raw in open(CONF, encoding="utf-8"):
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip()
+            if key not in DEFAULTS:
+                sys.exit(f"heavy-gate: unknown key {key!r} in {CONF}")
+            try:
+                conf[key] = float(value)
+            except ValueError:
+                sys.exit(f"heavy-gate: {key}={value!r} in {CONF} is not a number")
+    if not (0 <= conf["min_mem_free_pct"] <= 100 and 0 <= conf["min_disk_free_pct"] <= 100):
+        sys.exit("heavy-gate: percentage thresholds must be within 0..100")
+    if conf["max_load_per_core"] <= 0 or conf["slots"] < 1 or conf["slots"] != int(conf["slots"]):
+        sys.exit("heavy-gate: max_load_per_core must be > 0 and slots a whole number >= 1")
+    conf["slots"] = int(conf["slots"])
+    return conf
+
+
+def mem_free_pct():
+    """macOS memory_pressure 'System-wide memory free percentage: N%'; None when unavailable (e.g. a sandbox)."""
+    try:
+        out = subprocess.run(["memory_pressure"], capture_output=True, text=True, timeout=15,
+                             env={**os.environ, "LC_ALL": "C"}).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    match = re.search(r"free percentage:\s*(\d+(?:\.\d+)?)%", out)
+    return float(match.group(1)) if match else None
+
+
+def telemetry():
+    try:
+        load = os.getloadavg()[0]
+    except OSError:
+        load = None
+    cores = os.cpu_count() or 1
+    try:
+        usage = shutil.disk_usage(os.path.expanduser("~"))
+        disk = 100.0 * usage.free / usage.total
+    except OSError:
+        disk = None
+    return {"mem_free_pct": mem_free_pct(), "load1": load, "cores": cores, "disk_free_pct": disk}
+
+
+def gauge(conf, t):
+    reasons, unavailable = [], []
+    if t["mem_free_pct"] is None:
+        unavailable.append("memory")
+    elif t["mem_free_pct"] < conf["min_mem_free_pct"]:
+        reasons.append(f"memory_{t['mem_free_pct']:.0f}pct_free_below_{conf['min_mem_free_pct']:.0f}")
+    if t["load1"] is None:
+        unavailable.append("load")
+    elif t["load1"] / t["cores"] > conf["max_load_per_core"]:
+        reasons.append(f"load_{t['load1']:.1f}_over_{conf['max_load_per_core'] * t['cores']:.1f}")
+    if t["disk_free_pct"] is None:
+        unavailable.append("disk")
+    elif t["disk_free_pct"] < conf["min_disk_free_pct"]:
+        reasons.append(f"disk_{t['disk_free_pct']:.0f}pct_free_below_{conf['min_disk_free_pct']:.0f}")
+    if len(unavailable) == 3:
+        reasons.append("no_telemetry_readable")  # fail closed when nothing can be measured
+    return reasons, unavailable
+
+
+def slot_path(i):
+    return os.path.join(STATE, f"slot-{i}.lock")
+
+
+def meta_path(i):
+    return os.path.join(STATE, f"slot-{i}.json")
+
+
+def slot_is_held(i):
+    """True when someone holds slot i (a probe on a fresh open file description)."""
+    try:
+        fd = os.open(slot_path(i), os.O_RDWR | os.O_CREAT, 0o666)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return True
+    else:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)
+
+
+def holder(i):
+    if not slot_is_held(i):
+        return None
+    try:
+        return json.load(open(meta_path(i), encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"label": "?"}
+
+
+def inherited_slot():
+    """A nested call inside a run that already holds a lease: the env token must match the live slot's record."""
+    held = os.environ.get("HEAVY_GATE_HELD", "")
+    match = re.fullmatch(r"(\d+):([0-9a-f]{32})", held)
+    if not match:
+        return None
+    i, token = int(match.group(1)), match.group(2)
+    info = holder(i)
+    return i if info and info.get("token") == token else None
+
+
+def try_acquire(conf):
+    os.makedirs(STATE, exist_ok=True)
+    try:
+        os.chmod(STATE, 0o1777)
+    except OSError:
+        pass
+    for i in range(conf["slots"]):
+        fd = os.open(slot_path(i), os.O_RDWR | os.O_CREAT, 0o666)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            continue
+        return i, fd
+    return None, None
+
+
+def main(argv):
+    if not argv or argv[0] not in ("run", "check", "status"):
+        emit("usage: heavy-gate run [--label L] -- CMD... | check | status")
+        return 2
+    mode, rest = argv[0], argv[1:]
+    conf = load_conf()
+
+    if mode == "status":
+        t = telemetry()
+        reasons, unavailable = gauge(conf, t)
+        print(json.dumps({"telemetry": t, "thresholds": conf, "gated_by": reasons, "unavailable": unavailable}))
+        for i in range(conf["slots"]):
+            info = holder(i)
+            if info:
+                print(f"slot {i}: {info.get('label')} pid={info.get('pid')} since={info.get('start')}")
+        return 0
+
+    label = "unlabelled"
+    if mode == "run":
+        if rest[:1] == ["--label"]:
+            if len(rest) < 2:
+                emit("heavy-gate: --label needs a value")
+                return 2
+            label, rest = rest[1], rest[2:]
+        if rest[:1] == ["--"]:
+            rest = rest[1:]
+        if not rest:
+            emit("usage: heavy-gate run [--label L] -- CMD...")
+            return 2
+        nested = inherited_slot()
+        if nested is not None:
+            emit(f"HEAVY_GATE=inherited slot={nested}")
+            os.execvp(rest[0], rest)
+
+    t = telemetry()
+    reasons, unavailable = gauge(conf, t)
+    if reasons:
+        emit(f"HEAVY_GATE=gated reason={','.join(reasons)}")
+        return EX_GATED
+
+    if mode == "check":
+        free = [i for i in range(conf["slots"]) if not slot_is_held(i)]
+        if not free:
+            emit("HEAVY_GATE=gated reason=lease_busy")
+            return EX_GATED
+        emit("HEAVY_GATE=would_admit (advisory: check reserves nothing; use run)")
+        return 0
+
+    slot, fd = try_acquire(conf)
+    if slot is None:
+        busy = "; ".join(f"slot {i}: {(holder(i) or {}).get('label')}" for i in range(conf["slots"]))
+        emit(f"HEAVY_GATE=gated reason=lease_busy ({busy})")
+        return EX_GATED
+    token = secrets.token_hex(16)
+    meta = {"token": token, "label": label, "pid": os.getpid(), "start": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    tmp = meta_path(slot) + f".{os.getpid()}"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(meta, fh)
+    os.replace(tmp, meta_path(slot))
+    os.set_inheritable(fd, True)
+    os.environ["HEAVY_GATE_HELD"] = f"{slot}:{token}"
+    extra = f" unavailable={','.join(unavailable)}" if unavailable else ""
+    emit(f"HEAVY_GATE=admitted slot={slot} label={label.replace(' ', '_')}{extra}")
+    try:
+        os.execvp(rest[0], rest)  # CMD becomes this process: native signals and exit status; the fd keeps the lease
+    except OSError as error:
+        emit(f"heavy-gate: cannot exec {rest[0]!r}: {error}")
+        return 127
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

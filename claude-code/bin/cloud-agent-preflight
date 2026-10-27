@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# cloud-agent-preflight: run in the unit's worktree immediately before launching a Claude cloud leaf
+# (the project's template routine via RemoteTrigger; the Agent tool's remote isolation ran locally on 2026-10-27).
+# Policy: ~/.config/agents/modules/runtime-claude.md ("Remote substrate") and execution-substrates.md ("Headroom gate").
+#
+# Usage: cloud-agent-preflight [dir]     (default: the current directory)
+# Exit 0: launchable, and it prints the fingerprint line to put in the leaf's first step.
+# Exit 1: not launchable (reason printed).
+#
+# The cloud leaf clones the remote and fetches the unit's branch, so what matters is the remote's state:
+# the branch must be pushed, and uncommitted local edits never reach it. Scar 2026-10-27: a launch from a
+# multi-worktree project root holding a stray, empty .git failed with "Failed to resolve base branch HEAD".
+set -uo pipefail
+dir="${1:-$PWD}"
+cd "$dir" 2>/dev/null || { echo "cloud-agent-preflight: cannot cd to $dir"; exit 1; }
+fail() { echo "cloud-agent-preflight: NOT LAUNCHABLE: $*"; exit 1; }
+
+top="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "$dir is not inside a git work tree"
+git rev-parse --verify -q HEAD >/dev/null || fail "$top has no HEAD commit (a stray or empty .git?). cd into the unit's real worktree"
+git remote get-url origin >/dev/null 2>&1 || fail "$top has no 'origin' remote; the cloud sandbox clones from the remote"
+branch="$(git symbolic-ref --short -q HEAD || echo DETACHED)"
+head="$(git rev-parse --short=10 HEAD)"
+
+warn=""
+if [[ "$branch" != "DETACHED" ]]; then
+    up="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+    if [[ -z "$up" ]]; then
+        warn="branch $branch has no upstream: push it if the agent must start from these commits"
+    else
+        ahead="$(git rev-list --count "$up..HEAD" 2>/dev/null || echo '?')"
+        [[ "$ahead" != "0" ]] && warn="branch $branch is $ahead commit(s) ahead of $up: push first if the agent needs them"
+    fi
+fi
+dirty="$(git status --porcelain --untracked-files=no | wc -l | tr -d ' ')"
+[[ "$dirty" != "0" ]] && warn="${warn:+$warn; }$dirty tracked file(s) modified locally: uncommitted work does not reach the cloud agent"
+
+echo "cloud-agent-preflight: OK  repo=$top branch=$branch head=$head"
+[[ -n "$warn" ]] && echo "cloud-agent-preflight: WARN $warn"
+cat <<'EOF'
+First step to put in the agent prompt (proves WHERE it ran; a Darwin kernel or /Users/<you> means it ran locally):
+  uname -a; hostname; whoami; pwd; git log --oneline -1; ls /Users 2>&1 | head -3
+EOF
+exit 0
