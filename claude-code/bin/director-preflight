@@ -36,9 +36,19 @@ say() { # level check message
   if [ "$quiet" = 0 ] || [ "$1" != OK ]; then printf '%-5s %-8s %s\n' "$1" "$2" "$3"; fi
 }
 # Bounded run: a hung CLI must not hang the preflight.
-run_bounded() { # seconds cmd...
+run_bounded() { # seconds cmd... — exits 124 on timeout
   local secs="$1"; shift
-  perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+  # Fork and KILL on timeout: an exec'd alarm only sends SIGALRM, which Go CLIs (docker, gh)
+  # ignore, so a hung `docker info` held the preflight for 2 h (2026-10-27).
+  perl -e '
+    my $secs = shift;
+    my $pid = fork() // exit 125;
+    if ($pid == 0) { exec @ARGV or exit 127 }
+    local $SIG{ALRM} = sub { kill "KILL", $pid; waitpid($pid, 0); exit 124 };
+    alarm $secs;
+    waitpid($pid, 0);
+    exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+  ' "$secs" "$@"
 }
 
 # --- codex -------------------------------------------------------------------------------------------------------
