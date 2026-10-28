@@ -42,8 +42,8 @@ if [ -f "$HEAVY_PATTERNS_FILE" ]; then
   extra=$(grep -vE '^[[:space:]]*(#|$)' "$HEAVY_PATTERNS_FILE" | paste -sd'|' -)
   [ -n "$extra" ] && HEAVY_RUN_RE="$HEAVY_RUN_RE|$extra"
 fi
-ungated_heavy() {
-  printf '%s' "$1" | grep -qE "$HEAVY_RUN_RE" && ! printf '%s' "$1" | grep -qE 'heavy-gate[[:space:]]+run'
+ungated_heavy() {  # [[ =~ ]], not printf|grep -q: under pipefail an early grep exit can read as a miss
+  [[ $1 =~ $HEAVY_RUN_RE ]] && ! [[ $1 =~ heavy-gate[[:space:]]+run ]]
 }
 
 ran=0; passed=0; failed=0; skipped=0; manual=0; ungated=0; ungated_list=""
