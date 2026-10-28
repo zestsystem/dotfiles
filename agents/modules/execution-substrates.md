@@ -57,6 +57,7 @@ Mike: "can you create a system wide rule that the account should use cloud runne
   **A leaf** does not dispatch. It stops that phase and returns a structured `GATED: <phase> <reason> <exact command>` result; the director owns dispatch and queue registration.
 - **No cloud path** (environment-bound work such as simulators, local stacks or Keychain, or cloud capacity unavailable): register a durable deferral with `defer-verify`.
   - Its `--run` wraps the real command in `heavy-gate run`; `check` may be the precheck, but never the reservation.
+  - `drain-verify` enforces it: an entry whose run names a known heavy command without `heavy-gate run` is refused and logged UNGATED, never run or fail-counted, and listed in `ESCALATIONS.md` until rewrapped. Project-specific heavy recipe names go in the machine-local `~/.claude/verify-heavy-patterns` (2026-10-28: the nightly drain had started 28 ungated heavy anchors on the shared host).
   - The heartbeat drains it with `drain-verify`, oldest first. Two drain-time refusals in a row are reported to Mike instead of retried silently.
   - Meanwhile, keep working on other units.
 - **Local-only workflows** (Mike: "some workflows cannot use cloud runners"):
