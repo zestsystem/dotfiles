@@ -29,7 +29,24 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 note() { echo "$(date +%FT%T%z) $*" | tee -a "$REPORT"; }
 
-ran=0; passed=0; failed=0; skipped=0; manual=0
+# Heavy local phases must run inside `heavy-gate run` (execution-substrates, "Headroom gate"; a
+# deferred anchor's --run wraps the real command). 2026-10-28: 28 queued anchors started isolated
+# web e2e, Maestro or native builds bare from this drain on the shared host; one full lifecycle
+# e2e ran 48 min at load 14-16 before it was interrupted. An entry whose run names a heavy command
+# but not `heavy-gate run` is refused and logged UNGATED: never run, never fail-counted, listed in
+# ESCALATIONS.md until someone rewraps it. Project-specific heavy recipe names belong in the
+# machine-local patterns file (one ERE per line, # comments), not in this public script.
+HEAVY_RUN_RE='e2e-isolated|e2e-mobile|e2e-run|e2e-test-standalone|apps/mobile/ios|maestro|gradlew|xcodebuild'
+HEAVY_PATTERNS_FILE="${VERIFY_DEBT_HEAVY_PATTERNS:-$HOME/.claude/verify-heavy-patterns}"
+if [ -f "$HEAVY_PATTERNS_FILE" ]; then
+  extra=$(grep -vE '^[[:space:]]*(#|$)' "$HEAVY_PATTERNS_FILE" | paste -sd'|' -)
+  [ -n "$extra" ] && HEAVY_RUN_RE="$HEAVY_RUN_RE|$extra"
+fi
+ungated_heavy() {
+  printf '%s' "$1" | grep -qE "$HEAVY_RUN_RE" && ! printf '%s' "$1" | grep -qE 'heavy-gate[[:space:]]+run'
+}
+
+ran=0; passed=0; failed=0; skipped=0; manual=0; ungated=0; ungated_list=""
 for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
   entry=$(jq -c --arg id "$id" 'select(.id==$id)' "$Q" | head -1)
   cwd=$(echo "$entry" | jq -r .cwd)
@@ -50,6 +67,9 @@ for id in $(jq -r 'select(.status=="pending") | .id' "$Q"); do
   if [ ! -d "$cwd" ]; then
     note "STALE   $id ($entnote): cwd gone ($cwd) — marking stale, needs re-queue against a live worktree"
     newstatus="stale"
+  elif ungated_heavy "$runcmd"; then
+    note "UNGATED $id ($entnote): heavy run without heavy-gate — not run; rewrap as: heavy-gate run --label '<issue> <what>' -- <cmd>"
+    ungated=$((ungated+1)); ungated_list="${ungated_list}- [$id] $entnote (cwd: $cwd)"$'\n'; continue
   elif [ -n "$precheck" ] && ! (cd "$cwd" && bash -c "$precheck" >/dev/null 2>&1); then
     note "BUSY    $id ($entnote): precheck says resource not free — skipping this drain"
     skipped=$((skipped+1)); continue
