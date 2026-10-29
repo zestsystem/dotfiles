@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# account-guard — SessionStart / UserPromptSubmit hook: a project's sessions bill only that project's account.
+# account-guard — SessionStart / UserPromptSubmit / PreToolUse hook: a project's sessions bill only that project's account.
 #
 # Why (2026-10-28): voidpet desktop sessions were opened in the UTC app window and ran tens of thousands of
 # turns on the UTC account, which then had nothing left for UTC review. Nothing noticed, because the account
@@ -7,11 +7,13 @@
 #
 # Reads the machine-local map (~/.claude/model-economics.json): `project_routing[<p>].paths` +
 # `.claude_slots`, and `claude_slots[<slot>].account_last_verified`. This file is PUBLIC and names no account.
-# A project with `"account_guard": "block"` refuses prompts on any other account, and its accounts refuse
-# prompts outside it; every other mismatch only warns.
+# A project with `"account_guard": "block"` refuses prompts AND tool calls on any other account, and its accounts
+# refuse them outside it — tool calls too, because resumed sessions, background agents and scheduled tasks keep
+# working without a new prompt. Every other mismatch only warns (at session start and on prompts, never per tool).
 #
 # Account of this session: CLAUDE_CODE_USER_EMAIL (desktop sessions), else `claude auth status` for this
-# CLAUDE_CONFIG_DIR. Unknown account or unreadable map = allow (fail open, warned).
+# CLAUDE_CONFIG_DIR, cached per session so a tool-call check stays fast. Unknown account or unreadable map =
+# allow (fail open, warned).
 # One-session escape hatch: ACCOUNT_GUARD_OFF=1.
 set -uo pipefail
 
@@ -22,11 +24,20 @@ map="$HOME/.claude/model-economics.json"
 
 account="${CLAUDE_CODE_USER_EMAIL:-}"
 if [ -z "$account" ]; then
-  account="$(claude auth status 2>/dev/null | python3 -I -c 'import json,sys
+  sid="$(printf '%s' "$input" | python3 -I -c 'import json,sys
+try: print("".join(c for c in json.load(sys.stdin).get("session_id", "") if c.isalnum() or c == "-"))
+except Exception: print("")')"
+  cache="${TMPDIR:-/tmp}/account-guard/${sid:-none}"
+  if [ -n "$sid" ] && [ -s "$cache" ]; then
+    account="$(cat "$cache")"
+  else
+    account="$(claude auth status 2>/dev/null | python3 -I -c 'import json,sys
 try:
     j = json.load(sys.stdin); print(j.get("email") or "" if j.get("loggedIn") else "")
 except Exception:
     print("")')"
+    if [ -n "$sid" ] && [ -n "$account" ]; then mkdir -p "${cache%/*}" && printf '%s' "$account" > "$cache"; fi
+  fi
 fi
 
 python3 -I - "$map" "$account" "$input" <<'EOF'
@@ -41,16 +52,21 @@ event = hook.get("hook_event_name", "")
 cwd = os.path.realpath(hook.get("cwd") or os.getcwd())
 
 def say(message, block):
-    if event == "UserPromptSubmit" and block:
+    if block and event in ("UserPromptSubmit", "PreToolUse"):
+        if event == "PreToolUse":
+            message += " Stop working in this session and tell the user; do not retry or work around this."
         print(message, file=sys.stderr)
         sys.exit(2)
+    if event == "PreToolUse":
+        sys.exit(0)  # warnings belong at session start and on prompts, not on every tool call
     print(json.dumps({"systemMessage": message}))
     sys.exit(0)
 
 try:
     econ = json.load(open(map_path))
 except Exception as error:
-    print(json.dumps({"systemMessage": f"account-guard: cannot read {map_path} ({error}); not checking"}))
+    if event != "PreToolUse":
+        print(json.dumps({"systemMessage": f"account-guard: cannot read {map_path} ({error}); not checking"}))
     sys.exit(0)
 if not account:
     if event == "SessionStart":
