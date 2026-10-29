@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# account-guard — SessionStart / UserPromptSubmit hook: a project's sessions bill only that project's account.
+#
+# Why (2026-10-28): voidpet desktop sessions were opened in the UTC app window and ran tens of thousands of
+# turns on the UTC account, which then had nothing left for UTC review. Nothing noticed, because the account
+# a session bills is whichever one its app window is signed into.
+#
+# Reads the machine-local map (~/.claude/model-economics.json): `project_routing[<p>].paths` +
+# `.claude_slots`, and `claude_slots[<slot>].account_last_verified`. This file is PUBLIC and names no account.
+# A project with `"account_guard": "block"` refuses prompts on any other account, and its accounts refuse
+# prompts outside it; every other mismatch only warns.
+#
+# Account of this session: CLAUDE_CODE_USER_EMAIL (desktop sessions), else `claude auth status` for this
+# CLAUDE_CONFIG_DIR. Unknown account or unreadable map = allow (fail open, warned).
+# One-session escape hatch: ACCOUNT_GUARD_OFF=1.
+set -uo pipefail
+
+[ "${ACCOUNT_GUARD_OFF:-}" = "1" ] && exit 0
+
+input="$(cat)"
+map="$HOME/.claude/model-economics.json"
+
+account="${CLAUDE_CODE_USER_EMAIL:-}"
+if [ -z "$account" ]; then
+  account="$(claude auth status 2>/dev/null | python3 -I -c 'import json,sys
+try:
+    j = json.load(sys.stdin); print(j.get("email") or "" if j.get("loggedIn") else "")
+except Exception:
+    print("")')"
+fi
+
+python3 -I - "$map" "$account" "$input" <<'EOF'
+import json, os, sys
+
+map_path, account, raw = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    hook = json.loads(raw or "{}")
+except Exception:
+    hook = {}
+event = hook.get("hook_event_name", "")
+cwd = os.path.realpath(hook.get("cwd") or os.getcwd())
+
+def say(message, block):
+    if event == "UserPromptSubmit" and block:
+        print(message, file=sys.stderr)
+        sys.exit(2)
+    print(json.dumps({"systemMessage": message}))
+    sys.exit(0)
+
+try:
+    econ = json.load(open(map_path))
+except Exception as error:
+    print(json.dumps({"systemMessage": f"account-guard: cannot read {map_path} ({error}); not checking"}))
+    sys.exit(0)
+if not account:
+    if event == "SessionStart":
+        print(json.dumps({"systemMessage": "account-guard: could not tell which account this session bills; not checking"}))
+    sys.exit(0)
+
+slots = econ.get("claude_slots", {})
+email_of = {name: s.get("account_last_verified") for name, s in slots.items() if isinstance(s, dict)}
+
+projects = []
+for name, p in econ.get("project_routing", {}).items():
+    if name.startswith("_") or not isinstance(p, dict):
+        continue
+    allowed = {email_of.get(s) for s in p.get("claude_slots", []) if email_of.get(s)}
+    for path in p.get("paths", []):
+        # A trailing "*" is a plain string prefix (e.g. per-session scratch dirs named after the repo).
+        prefix = path.endswith("*")
+        root = os.path.realpath(os.path.expanduser(path.rstrip("*")))
+        projects.append((root, name, allowed, p.get("account_guard") == "block", prefix))
+
+def contains(root, prefix):
+    return cwd.startswith(root) if prefix else (cwd == root or cwd.startswith(root + os.sep))
+
+here = None
+for root, name, allowed, strict, prefix in sorted(projects, key=lambda x: -len(x[0])):
+    if contains(root, prefix):
+        here = (name, allowed, strict)
+        break
+
+hint = "Open this project in its own Claude app window (or its CLI wrapper), or set ACCOUNT_GUARD_OFF=1 for one session."
+
+# 1. An account reserved to a strict project, used anywhere else.
+for root, name, allowed, strict, _prefix in projects:
+    if strict and account in allowed and (not here or here[0] != name):
+        where = here[0] if here else cwd
+        say(f"account-guard: {account} is reserved for {name}, but this session is working in {where}. {hint}", True)
+
+# 2. Inside a mapped project, on an account that project does not use.
+if here and account not in here[1]:
+    name, allowed, strict = here
+    say(f"account-guard: {name} must bill {', '.join(sorted(allowed))}, but this session is signed in as "
+        f"{account}. {hint}", strict)
+
+sys.exit(0)
+EOF

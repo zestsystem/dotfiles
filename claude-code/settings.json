@@ -56,6 +56,28 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/claude-code/bin/account-guard\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/claude-code/bin/account-guard\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
