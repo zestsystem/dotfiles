@@ -2,10 +2,21 @@
 """PermissionRequest hook: answer every remaining Bash prompt with a denial so unattended sessions never stall.
 
 In bypassPermissions mode the only Bash prompts left are critical-path removal checks (rm/rmdir that could
-reach /, ~, a repository root, or an inline script Claude Code cannot inspect). Denying keeps the session
-moving: the agent gets the message and rewrites the command with literal, guarded paths.
+reach /, ~, a repository root, or an inline script Claude Code cannot inspect) and production releases, which
+a project's settings put under `ask` (Mike, 2026-10-28: "just ask me" — they used to be denied outright).
+Denying keeps an unattended session moving: the agent gets the message and rewrites the command. A
+production-release prompt in a session someone is attending is shown to them instead.
 """
-import json, sys
+import json, os, re, sys
+
+# Production entry points: web/api release, mobile build+submit and OTA, prod DB deploy requests.
+PROD_RELEASE = re.compile(
+    r"gh\s+workflow\s+run\b.*(release\.yml|release-mobile\.yml|ota-mobile\.yml|planetscale-deploy-request\.yml"
+    r"|Production Release Orchestrator|Release Mobile App|Publish Mobile OTA Update|Database Migrations"
+    r"|environment=production)"
+    r"|\beas\s+submit\b|\beas\s+update\b.*production",
+    re.S,
+)
 
 try:
     event = json.load(sys.stdin)
@@ -13,6 +24,22 @@ except Exception:
     sys.exit(0)  # unreadable input: fall back to the normal prompt
 if event.get("permission_mode") in ("default", "acceptEdits", "plan"):
     sys.exit(0)  # attended modes: Mike chose to be asked, so let the normal prompt show
+command = str((event.get("tool_input") or {}).get("command") or "")
+attended = os.environ.get("CLAUDE_CODE_SESSION_ATTENDED", "").lower() in ("1", "true", "yes")
+if PROD_RELEASE.search(command):
+    if attended:
+        sys.exit(0)  # a person is here: ask them
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PermissionRequest",
+            "decision": {
+                "behavior": "deny",
+                "message": "Auto-denied by permission-request-guard: production releases need Mike's approval and "
+                "this session is unattended. Queue it for Mike (STATUS / handoff) instead of retrying.",
+            },
+        }
+    }))
+    sys.exit(0)
 message = (
     "Auto-denied by permission-request-guard (unattended mode): this command was held for a critical-path "
     "removal check. Rewrite it so Claude Code can inspect it: use literal paths, guard variables as "
