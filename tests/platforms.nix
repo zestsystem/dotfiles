@@ -45,7 +45,7 @@ assert !(settings.hooks ? Notification) && !(settings.hooks ? Stop);
 assert settings.hooks.PreToolUse != [ ];
 assert
   darwin.config.home-manager.users.mikeyim.programs.zsh.shellAliases.codex
-  == "/Applications/ChatGPT.app/Contents/Resources/codex";
+  == "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex";
 assert builtins.all (a: a.assertion) alternate.config.assertions;
 {
   linux = cfg.system.build.toplevel.drvPath;
