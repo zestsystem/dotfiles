@@ -127,6 +127,41 @@ else
   say WARN gh "gh auth status failed — PR, land and review steps will fail"
 fi
 
+# --- review loops (2026-11-13) ------------------------------------------------------------------------------------
+# A review chain plus restart watchers ran ~96 full review pairs on one PR over 3 days (about 10 runs an hour) and
+# nobody noticed. Count review-stamp comments per open PR in the last 6 h; more than REVIEW_LOOP_MAX (default 8,
+# i.e. 4 pairs) means a loop is burning quota: find its chain/watcher and stop it (bounded-loop rule).
+if [ -n "$repo" ] && command -v gh >/dev/null 2>&1; then
+  slug="$(git -C "$repo" remote get-url origin 2>/dev/null | sed -E 's#(git@[^:]+:|https://[^/]+/)##; s#\.git$##')"
+  if [ -n "$slug" ]; then
+    owner="${slug%%/*}" name="${slug##*/}"
+    q='query($o:String!,$n:String!){repository(owner:$o,name:$n){pullRequests(states:OPEN,first:80,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number comments(last:100){nodes{createdAt body}}}}}}'
+    json="$(run_bounded 30 gh api graphql -f query="$q" -F o="$owner" -F n="$name" 2>/dev/null)"
+    if [ -n "$json" ]; then
+      loops="$(printf '%s' "$json" | REVIEW_LOOP_MAX="${REVIEW_LOOP_MAX:-8}" python3 -c '
+import json, os, sys, datetime as dt
+limit = int(os.environ["REVIEW_LOOP_MAX"])
+since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=6)
+out = []
+for pr in json.load(sys.stdin)["data"]["repository"]["pullRequests"]["nodes"]:
+    n = sum(1 for c in pr["comments"]["nodes"]
+            if "review v1 {" in c["body"][:80]
+            and dt.datetime.fromisoformat(c["createdAt"].replace("Z", "+00:00")) >= since)
+    if n > limit: out.append("#%s=%d" % (pr["number"], n))
+print(" ".join(out) if out else "NONE")' 2>/dev/null)"
+      if [ -z "$loops" ]; then
+        say WARN reviews "review-loop check failed to parse the PR list (fix this check)"
+      elif [ "$loops" != NONE ]; then
+        say WARN reviews "review runs in the last 6 h above ${REVIEW_LOOP_MAX:-8} per PR: $loops: a loop is burning quota; find and stop its chain or watcher"
+      else
+        say OK reviews "no PR above ${REVIEW_LOOP_MAX:-8} review runs in 6 h"
+      fi
+    else
+      say WARN reviews "could not read open PRs to check for review loops"
+    fi
+  fi
+fi
+
 # --- summary ------------------------------------------------------------------------------------------------------
 if [ "${#warns[@]}" -gt 0 ]; then
   printf 'PREFLIGHT: %d warning(s) — keep working; tell Mike: %s\n' "${#warns[@]}" "$(printf '%s; ' "${warns[@]}")"
