@@ -24,7 +24,10 @@ in
       "flakes"
     ];
     nixpkgs.config.allowUnfree = true;
-    nixpkgs.overlays = [ (import ../shared/overlays.nix) ];
+    nixpkgs.overlays = [
+      (import ../shared/overlays.nix)
+      inputs.claude-desktop.overlays.default
+    ];
 
     networking.networkmanager.enable = lib.mkDefault true;
     hardware.bluetooth.enable = lib.mkDefault true;
@@ -64,7 +67,14 @@ in
       backupFileExtension = "backup";
       users.${cfg.username} = {
         imports = [ (import ../shared/home-manager.nix { inherit inputs; }) ];
-        home.packages = (import ../shared/home-manager-packages.nix { inherit pkgs; }) ++ [ pkgs.codex ];
+        home.packages = (import ../shared/home-manager-packages.nix { inherit pkgs; }) ++ [
+          pkgs.codex
+          # Agent tooling available right after the first switch.
+          pkgs.claude-code
+          pkgs.claude-desktop-fhs
+          pkgs.google-chrome # Claude in Chrome extension
+          pkgs.chromium
+        ];
       };
     };
   };

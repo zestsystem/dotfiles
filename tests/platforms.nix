@@ -36,6 +36,12 @@ in
 assert builtins.all (a: a.assertion) cfg.assertions;
 assert !(home.programs.zsh.shellAliases ? codex);
 assert builtins.elem "codex" (map (p: p.pname or "") home.home.packages);
+assert builtins.all (n: builtins.elem n (map (p: p.pname or p.name or "") home.home.packages)) [
+  "claude-code"
+  "google-chrome"
+  "chromium"
+];
+assert builtins.any (p: builtins.match "claude-desktop.*" (p.name or "") != null) home.home.packages;
 assert home.home.homeDirectory == "/home/laptopuser";
 assert cfg.users.users.laptopuser.hashedPassword == "!";
 assert !(cfg.users.users ? mikeyim);
