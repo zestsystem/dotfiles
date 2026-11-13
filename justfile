@@ -16,6 +16,6 @@ secrets:
         echo "SSH key bootstrapped"; \
     fi
 
-# Run on the ThinkPad after installing the template in /etc/nixos.
-nixos command="switch":
-    sudo nixos-rebuild {{command}} --flake /etc/nixos#thinkpad
+# Run on the laptop after installing a template in /etc/nixos (host: thinkpad or xps15).
+nixos command="switch" host="thinkpad":
+    sudo nixos-rebuild {{command}} --flake /etc/nixos#{{host}}

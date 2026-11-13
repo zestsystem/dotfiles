@@ -21,6 +21,37 @@ From this checkout:
 just darwin work switch
 ```
 
+## Dell XPS 15 9560: first setup
+
+Same steps as the ThinkPad below, with these differences:
+
+- **BIOS first (F2 at boot):** under *System Configuration > SATA Operation*
+  switch **RAID On > AHCI**, and under *Secure Boot* disable Secure Boot (keep
+  UEFI). Without AHCI the NixOS installer cannot see the NVMe SSD. Do this only
+  when you are ready to leave Windows: Windows will not boot in AHCI unless it
+  was prepared for it.
+- Boot the USB with **F12**.
+- Use `templates/xps15/flake.nix` as `/etc/nixos/flake.nix` and build
+  `/etc/nixos#xps15` (`just nixos switch xps15`). It adds the nixos-hardware
+  profile with the NVIDIA GPU powered off.
+
+## After the first switch (any Linux machine)
+
+The module also enables Docker, libvirt/KVM (needed by Claude Desktop Cowork),
+nix-ld (prebuilt binaries such as npm/pip downloads and language servers),
+Nerd Fonts, the nix-community binary cache and weekly garbage collection.
+Log out and back in once so the `docker`, `libvirtd` and `kvm` groups apply.
+
+```sh
+gh auth login          # GitHub (HTTPS + credential helper)
+doppler login          # then: just secrets   (writes ~/.env and ~/.ssh/id_ed25519)
+claude                 # sign in to Claude Code
+claude-desktop         # sign in to Claude Desktop
+codex login
+```
+
+Install the Claude in Chrome extension in Google Chrome from the Chrome Web Store.
+
 ## ThinkPad X1 Carbon: first setup
 
 1. Install NixOS using the graphical USB installer. Choose **GNOME** and create

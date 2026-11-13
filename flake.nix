@@ -53,6 +53,10 @@
           path = ./templates/thinkpad;
           description = "Add shared dotfiles to an installed NixOS ThinkPad";
         };
+        templates.xps15 = {
+          path = ./templates/xps15;
+          description = "Add shared dotfiles to an installed NixOS Dell XPS 15 9560";
+        };
         darwinConfigurations = {
           work-darwin = systems.mkDarwin {
             system = "aarch64-darwin";
