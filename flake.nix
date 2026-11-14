@@ -2,6 +2,9 @@
   description = "Development packages and systems for Zestsystem";
 
   inputs = {
+    # Unofficial NixOS repackaging of Anthropic's official Linux Claude Desktop .deb.
+    claude-desktop.inputs.nixpkgs.follows = "nixpkgs";
+    claude-desktop.url = "github:aaddrick/claude-desktop-debian";
     flake-parts.url = "github:hercules-ci/flake-parts";
     darwin.inputs.nixpkgs.follows = "nixpkgs";
     darwin.url = "github:lnl7/nix-darwin";
@@ -49,6 +52,10 @@
         templates.thinkpad = {
           path = ./templates/thinkpad;
           description = "Add shared dotfiles to an installed NixOS ThinkPad";
+        };
+        templates.xps15 = {
+          path = ./templates/xps15;
+          description = "Add shared dotfiles to an installed NixOS Dell XPS 15 9560";
         };
         darwinConfigurations = {
           work-darwin = systems.mkDarwin {
