@@ -44,6 +44,12 @@ thresholds.
 - Screen ≠ adoption. Routing changes need ~3 graded production results plus the fresh-context challenge. Draft protocol
   changes, never apply them.
 
+## Dual-director rounds
+Mike may run the same round under two directors (e.g. one Claude and one Gemini). If units.lock already exists, read it
+and never reselect units. Write only to your own runs/<director>/ directory, and don't read the other run until both are
+complete. Consolidate afterwards: robust = both runs agree; resolve disagreements on evidence; report the director effect
+and the run-to-run variance.
+
 ## Running it in another repo
 Run each repo's round from a session in that repo, on that repo's account homes, against the same frozen SPEC.md. Results
 from every repo go into the same round directory, split by repo.
