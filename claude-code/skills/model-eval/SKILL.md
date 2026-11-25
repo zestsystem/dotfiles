@@ -19,6 +19,12 @@ only. Never copy task content, answer keys or results into this file: it syncs t
 3. A new model or a new repo means a new round directory with its own `SPEC.md`, written and sha256-recorded BEFORE arm 1.
    Never edit a frozen spec. Put deviations in that round's `RESULTS.md` with a reason.
 
+## Judges come from vendors with no arm in the round
+Check which vendors' subscriptions are live at run time; don't assume a lane still exists. Pick neutral judges from the
+remaining vendors with no arm in the round, and use judges from an arm's vendor only as a measured bias probe. If just one
+neutral judge is available, say the headline is weaker. Tag every grade with the panel that produced it, and never blend
+grades across panels.
+
 ## Decisions only Mike makes (ask once, up front)
 Which vendor/model is meant. Whether each repo's code may go to that vendor, and on which account. How the model gets
 installed and signed in (Mike does every login). Whether the fixed Fable baseline arm runs. Any budget beyond the stopping
