@@ -12,10 +12,10 @@ only. Never copy task content, answer keys or results into this file: it syncs t
 ## Before anything else
 1. Read `~/.claude/model-eval/BATTERY.md` (axes, task classes, history), then the newest round's `SPEC.md`
    (e.g. `neon-v2/`) and the `opus55-exec/` scripts it reuses.
-2. **Conflict of interest.** Check whether your own model is ANY arm, the baseline included (Fable is an arm whenever
-   the baseline runs). If it is, DRAFT the spec only and tell Mike a model that is not an arm must direct. Every director
-   runs blind: a launcher writes the arms under random labels and the mapping stays sealed until all judging is saved.
-   An arm's model never grades.
+2. **Impartiality (Mike's rule):** any model may direct or judge, including a model that's in the trial. Act as an
+   impartial referee. Keep two cheap safeguards: run blind (a launcher writes arms under random labels; the mapping stays
+   sealed until every judge's output is saved), and measure and report each judge's self-preference gap. If you are an
+   arm, disclose that in the report.
 3. A new model or a new repo means a new round directory with its own `SPEC.md`, written and sha256-recorded BEFORE arm 1.
    Never edit a frozen spec. Put deviations in that round's `RESULTS.md` with a reason.
 
