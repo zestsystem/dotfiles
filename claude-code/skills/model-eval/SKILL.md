@@ -19,13 +19,14 @@ only. Never copy task content, answer keys or results into this file: it syncs t
 3. A new model or a new repo means a new round directory with its own `SPEC.md`, written and sha256-recorded BEFORE arm 1.
    Never edit a frozen spec. Put deviations in that round's `RESULTS.md` with a reason.
 
-## Judges: every vendor that's live at run time
-Check which vendors' subscriptions are live at run time; don't assume a lane still exists. Include a judge from each live
-vendor, arms' vendors included. Tag every grade with the panel that produced it, and never blend grades across panels.
+## Judges: everyone in the try-out
+Every model with an arm in the trial judges, plus any other model available at run time. One vote each, nobody sole. Check
+what is actually available at run time; don't assume a lane still exists. Tag every grade with the panel that produced it,
+and never blend grades across panels.
 
 ## Decisions only Mike makes (ask once, up front)
 Which vendor/model is meant. Whether each repo's code may go to that vendor, and on which account. How the model gets
-installed and signed in (Mike does every login). Whether the fixed Fable baseline arm runs. Any budget beyond the stopping
+installed and signed in (Mike does every login). Which arms run (including any fixed baseline). Any budget beyond the stopping
 thresholds.
 
 ## Non-negotiables every round
@@ -36,15 +37,15 @@ thresholds.
   paths. Grep every transcript for answer-key, memory or log reads.
 - Units are selected mechanically from merged work, and every candidate is recorded with its reason.
 - Account preflight before every billed launch, using the CLI's own identity. Stop on a wrong identity.
-- Blind multi-judge panel from every live vendor. The headline is the median of ALL judges. A neutral vendor's judge is one
-  vote, never the sole judge. Report each judge's self-preference gap and the headline with and without a biased judge.
+- Blind panel of all judges. The headline is the median of ALL judges. After unsealing, report each judge's
+  self-preference gap (its grade for its own arm minus the others' median) and the headline with and without that judge.
   Where judges disagree by >1 grade, adjudicate on evidence. Mike's blind review board is the visual/UX taste score.
 - Every run is a result: failed, refused, capped and contaminated runs are listed, never dropped.
 - Screen ≠ adoption. Routing changes need ~3 graded production results plus the fresh-context challenge. Draft protocol
   changes, never apply them.
 
 ## Dual-director rounds
-Mike may run the same round under two directors (e.g. one Claude and one Gemini). If units.lock already exists, read it
+Mike may run the same round under more than one director. If units.lock already exists, read it
 and never reselect units. Write only to your own runs/<director>/ directory, and don't read the other run until both are
 complete. Consolidate afterwards: robust = both runs agree; resolve disagreements on evidence; report the director effect
 and the run-to-run variance.
