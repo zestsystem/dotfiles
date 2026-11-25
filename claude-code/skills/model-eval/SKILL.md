@@ -19,11 +19,9 @@ only. Never copy task content, answer keys or results into this file: it syncs t
 3. A new model or a new repo means a new round directory with its own `SPEC.md`, written and sha256-recorded BEFORE arm 1.
    Never edit a frozen spec. Put deviations in that round's `RESULTS.md` with a reason.
 
-## Judges come from vendors with no arm in the round
-Check which vendors' subscriptions are live at run time; don't assume a lane still exists. Pick neutral judges from the
-remaining vendors with no arm in the round, and use judges from an arm's vendor only as a measured bias probe. If just one
-neutral judge is available, say the headline is weaker. Tag every grade with the panel that produced it, and never blend
-grades across panels.
+## Judges: every vendor that's live at run time
+Check which vendors' subscriptions are live at run time; don't assume a lane still exists. Include a judge from each live
+vendor, arms' vendors included. Tag every grade with the panel that produced it, and never blend grades across panels.
 
 ## Decisions only Mike makes (ask once, up front)
 Which vendor/model is meant. Whether each repo's code may go to that vendor, and on which account. How the model gets
@@ -38,7 +36,8 @@ thresholds.
   paths. Grep every transcript for answer-key, memory or log reads.
 - Units are selected mechanically from merged work, and every candidate is recorded with its reason.
 - Account preflight before every billed launch, using the CLI's own identity. Stop on a wrong identity.
-- Blind multi-judge panel: vendor-neutral judges set the headline score. Home-vendor judges run as a measured bias probe.
+- Blind multi-judge panel from every live vendor. The headline is the median of ALL judges. A neutral vendor's judge is one
+  vote, never the sole judge. Report each judge's self-preference gap and the headline with and without a biased judge.
   Where judges disagree by >1 grade, adjudicate on evidence. Mike's blind review board is the visual/UX taste score.
 - Every run is a result: failed, refused, capped and contaminated runs are listed, never dropped.
 - Screen ≠ adoption. Routing changes need ~3 graded production results plus the fresh-context challenge. Draft protocol
