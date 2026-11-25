@@ -16,7 +16,8 @@ only. Never copy task content, answer keys or results into this file: it syncs t
    impartial referee. Keep two cheap safeguards: run blind (a launcher writes arms under random labels; the mapping stays
    sealed until every judge's output is saved), and measure and report each judge's self-preference gap. If you are an
    arm, disclose that in the report.
-3. A new model or a new repo means a new round directory with its own `SPEC.md`, written and sha256-recorded BEFORE arm 1.
+3. A new model means a new round directory: copy `~/.claude/model-eval/TEMPLATE-SPEC.md` (the reusable formula) to
+   `<round>/SPEC.md`, fill it from Mike's answers, and record its sha256 BEFORE arm 1.
    Never edit a frozen spec. Put deviations in that round's `RESULTS.md` with a reason.
 
 ## Judges: everyone in the try-out
