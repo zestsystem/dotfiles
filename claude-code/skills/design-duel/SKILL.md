@@ -56,8 +56,10 @@ For app screens, swap in task-based criteria (time to first success, error recov
 
 Work on a design canvas (a Claude Design artifact when available), with one artboard per platform/viewport: desktop 1440, phone 390, plus app screens at device size.
 
-- **Real everything.** The product's live tokens and type, real screenshots or faithful recreations of real screens, real data, real names. Placeholder content teaches the judges nothing.
-- **Faithful product UI.** Recreate app screens (brackets, checkouts, editors) at real fidelity, not simplified icons. Judges reward seeing the actual product.
+- **Capture, don't redraw.** Today is always a capture of the running product (local dev, staging, simulator or emulator), never a recreation. For Proposed, change the real code on a scratch branch (or behind a dev flag) and capture that render. Hand-draw only what has no code yet, and draw it on top of a real capture rather than from scratch. If a device or simulator is busy with another session, start your own instance; don't fall back to drawing.
+- **Label every artboard** Captured, Composite (a capture plus drawn changes) or Drawn. A Drawn artboard can't be the acceptance spec, and its scores are provisional until the round is rerun on captures.
+- **Show what the build will really show.** If the change puts an old-style part inside a new frame (a legacy body under a redesigned header, say), the board shows that part as it ships, and the gap gets its own row on the audit page. Never restyle parts the build won't touch.
+- **Real everything.** The product's live tokens and type, real data, real names. Placeholder content teaches the judges nothing.
 - Load the house design and writing skills (unslop design and writing, marketing pages, UI polish) before each big change.
 
 ## 4. Capture
@@ -65,7 +67,7 @@ Work on a design canvas (a Claude Design artifact when available), with one artb
 Judges score pixels, not markup. Render every artboard and capture it viewport by viewport:
 
 - **Web / canvas boards**: `scripts/render-dc.mjs` turns a `.dc.html` artboard into static HTML (pass a JSON map of asset ids to local files). `scripts/scroll-shots.mjs <url> <prefix> <width> <height> [mobile]` takes one JPEG per viewport with headless Chrome (`CHROME_BIN` overrides the path).
-- **Native app screens**: capture from the simulator/emulator, or render the canvas artboard at device size.
+- **Running product (preferred)**: point `scroll-shots.mjs` at the local or staging URL of the real page. Native app screens come from the simulator/emulator (`xcrun simctl io <device> screenshot`, deep links to reach the screen). Render a canvas artboard instead only for a Drawn board, and say so in the round log.
 - Name captures `A-<platform>-NN.jpg` (opponent) and `B-<platform>-NN.jpg` (yours). Each round overwrites B; A never changes.
 
 ## 5. Judge
