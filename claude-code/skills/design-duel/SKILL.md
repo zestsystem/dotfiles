@@ -103,7 +103,13 @@ Lessons that recur:
 
 ## 8. Know when to stop
 
-Stop when the last two rounds are inside the noise floor and the judges' remaining asks need things only people can supply (quotes, consent, real data, a product feature). More rounds won't separate the designs; the build will (real components render sharper than any board). Say so plainly, then:
+There are three exits. Only one is a win.
+
+1. **Win.** Two judged rounds in a row where your design beats the opponent by more than the noise floor on every platform, and every ledger row is covered. This is the only result that may be called a win.
+2. **Stall.** The last two rounds are inside the noise floor and the judges' remaining asks need things only people can supply (quotes, consent, real data, a product feature). Stop, but don't call it done: hand the owner the list of what each blocking ask needs from them, with the score gap, and resume after they supply it.
+3. **Cap.** 20 rounds. Stop and report the round history, where you win, where you lose and what would close the gap. The owner decides whether to continue.
+
+A tie is a tie: say "tied", never "won". When you stop on a win, then:
 
 ## 9. Hand off to the build
 
