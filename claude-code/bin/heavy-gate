@@ -7,7 +7,7 @@ Heavy means:
 - e2e and docker stack runs;
 - simulator or emulator sessions.
 
-The policy is in ~/.config/agents/modules/execution-substrates.md, under "Headroom gate".
+The policy is in ~/.config/agents/modules/host-and-ci.md, under "Heavy local phases".
 
 Usage:
   heavy-gate run [--label L] -- CMD...   admit (lease + gauge), then exec CMD; gated: exit 75, CMD never starts

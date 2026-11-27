@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cloud-agent-preflight: run in the unit's worktree immediately before launching a Claude cloud leaf
 # (the project's template routine via RemoteTrigger; the Agent tool's remote isolation ran locally on 2026-10-27).
-# Policy: ~/.config/agents/modules/runtime-claude.md ("Remote substrate") and execution-substrates.md ("Headroom gate").
+# Policy: ~/.config/agents/modules/runtime-claude.md ("Remote substrate") and host-and-ci.md ("Heavy local phases").
 #
 # Usage: cloud-agent-preflight [dir]     (default: the current directory)
 # Exit 0: launchable, and it prints the fingerprint line to put in the leaf's first step.

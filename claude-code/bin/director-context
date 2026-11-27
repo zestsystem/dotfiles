@@ -2,7 +2,7 @@
 # director-context — context-occupancy telemetry for director sessions, and a check that the
 # compaction window is actually in force.
 #
-# Policy (2026-09-29 pilot, Mike-approved; see ~/.config/agents/modules/director-lifecycle.md): a director
+# Policy (2026-09-29 pilot, Mike-approved; see ~/.config/agents/modules/lifecycle.md): a director
 # resets its context by in-process AUTO-COMPACTION at CLAUDE_CODE_AUTO_COMPACT_WINDOW (settings.json
 # env, 600000), not by recycling into a fresh session. The Fable-era rule this script used to gate
 # (WARN 250K / RECYCLE 400K cache-read per message -> fresh session) is retired: it was a meter rule

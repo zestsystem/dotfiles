@@ -29,7 +29,7 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 note() { echo "$(date +%FT%T%z) $*" | tee -a "$REPORT"; }
 
-# Heavy local phases must run inside `heavy-gate run` (execution-substrates, "Headroom gate"; a
+# Heavy local phases must run inside `heavy-gate run` (host-and-ci.md, "Heavy local phases"; a
 # deferred anchor's --run wraps the real command). 2026-10-28: 28 queued anchors started isolated
 # web e2e, Maestro or native builds bare from this drain on the shared host; one full lifecycle
 # e2e ran 48 min at load 14-16 before it was interrupted. An entry whose run names a heavy command
