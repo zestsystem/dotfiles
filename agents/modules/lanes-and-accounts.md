@@ -2,6 +2,13 @@
 
 Read WHEN choosing who runs a task, picking effort, launching any billed Claude or Codex call, or handling a quota wall or a broken tool. Exact model IDs, meters and the seat live in the machine-local `~/.claude/model-economics.json`; this file names families so a model release doesn't make it wrong. Before routing to a model name, check it against the live catalog (Codex: `~/.codex/models_cache.json`).
 
+**Always the newest model in each family (Mike, 2026-11-26: "we should never use outdated models").** When a catalog lists a newer model in a family you use (Sol, Astra, Terra, Luna, Fable, Opus, Sonnet, Haiku), or a release note announces one:
+1. Smoke-test it on the project's home: one pinned "reply OK" call, and confirm the observed model (Claude: `--output-format json` → `modelUsage`).
+2. Update `model-economics.json`.
+3. Update every pinned ID: `grep -rnE 'claude-(fable|opus|sonnet|haiku)-[0-9-]+|gpt-[0-9.]+-(sol|astra|terra|luna)'` across the dotfiles, `~/.claude/bin`, `~/.codex/AGENTS.md`, `~/.claude/settings.json`, and each repo's review gate. Review-gate pins change through that repo's normal PR.
+
+This is a factual update, not a routing debate. Fallbacks also use the newest model one tier down, never an older generation.
+
 ## Routing
 
 - **Codex Sol: default executor** for anything a written prompt can specify: backend, infra, non-UI mobile, services, research, mechanical sweeps, browser and simulator QA. It bills the ChatGPT plan, which spares the Anthropic plan, so weight it hardest.

@@ -26,7 +26,7 @@ Machine-local companions (never synced): `~/.claude/delegation-preamble.md`, `~/
 ## Lanes and accounts
 
 - **Codex Sol** executes by default. **Codex Astra** does judgment and review. **Claude UI lane** (Fable-low, Opus fallback) does all DELEGATED UI implementation, never Codex or k3 automatically (a Codex solo session may do its own). **Fable** does design direction and judgment, Mike-started only. **Sonnet** handles harness, exploration and copy work. k3 and Grok only on Mike's explicit ask.
-- Exact IDs live in `model-economics.json`; check names against the live catalog.
+- **Always use the newest model in each family** (Mike, 2026-11-26). A newer one in the catalog gets a smoke test, then an update everywhere it's pinned (`lanes-and-accounts.md`). Exact IDs live in `model-economics.json`.
 - **Every billed launch is project-scoped:** confirm home → account → project from the CLI's own identity before launching. Never borrow another project's quota; only Mike logs in. Subscriptions only, never metered.
 - Codex broken → route to Claude on the same project home, warn Mike, keep working. Usage wall → check for a reset first. Details: `lanes-and-accounts.md`.
 

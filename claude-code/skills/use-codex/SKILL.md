@@ -15,7 +15,7 @@ Spawn autonomous Codex CLI subagents to offload context-heavy work. Subagents bu
 When invoking this skill:
 
 1. **Clarify intent.** Figure out what the user wants. If unclear, ask. Inline args ("use codex to review my auth plan") usually carry the intent — infer from them. Common buckets: second-opinion code review, refactor, plan validation, implementation of features, fresh perspective on a stuck bug, parallel comparison of approaches.
-2. **Pick the right model AND reasoning tier.** EXECUTOR work (implementation, sweeps, agentic QA): GPT 5.6 Sol (`gpt-5.6-sol`), low or high reasoning (xhigh only as explicit per-task escalation). JUDGMENT/REVIEW work (adversarial skeptic, architecture consult, spec draft, root-cause): GPT-6 Astra (`gpt-6-astra`, provisional lane since 2026-09-05), `medium` default, `high` for money/auth/migration skeptics; run skeptics with `--sandbox read-only` instead of `--yolo`. Never `ultra`/`max`. Launch landmine: `codex exec` blocks forever on an open non-TTY stdin even with a positional prompt — always redirect `< /dev/null` or feed the prompt via `-` from a file.
+2. **Pick the right model AND reasoning tier.** EXECUTOR work (implementation, sweeps, agentic QA): GPT 6.1 Sol (`gpt-6.1-sol`), low or high reasoning (xhigh only as explicit per-task escalation). JUDGMENT/REVIEW work (adversarial skeptic, architecture consult, spec draft, root-cause): GPT-6 Astra (`gpt-6-astra`, provisional lane since 2026-09-05), `medium` default, `high` for money/auth/migration skeptics; run skeptics with `--sandbox read-only` instead of `--yolo`. Never `ultra`/`max`. Launch landmine: `codex exec` blocks forever on an open non-TTY stdin even with a positional prompt — always redirect `< /dev/null` or feed the prompt via `-` from a file.
 3. **Spawn the subagent** using the canonical invocation (Basic Usage). Pipe long prompts via stdin.
 4. **Act autonomously while it runs.** Don't ask for permission mid-flight; the parent only sees the final result, so mid-task pauses waste tokens. Pause only for genuinely destructive operations (data loss, external impact, security).
 5. **Monitor, don't fire-and-forget.** Check completion, verify quality, retry on failure, answer follow-ups if blocked. Feel free to run multiple sequential or parallel codex subagents.
@@ -23,7 +23,7 @@ When invoking this skill:
 
 ## Model + Reasoning Selection
 
-Default to GPT 5.6 Sol (`gpt-5.6-sol`; exact lane IDs live in `~/.claude/model-economics.json`, and `gpt-5.5` is retired: fall back within the current generation by effort or lane), choosing low or high reasoning. Simple, short, or basic tasks are best done by low reasoning; hard, large, or long tasks by high reasoning. Medium suits read-only investigation and verification runs. Reserve xhigh for explicit per-task escalation on the gnarliest specs (see `~/.config/agents/modules/lanes-and-accounts.md`).
+Default to the newest Sol (today `gpt-6.1-sol`; exact lane IDs live in `~/.claude/model-economics.json`, and `gpt-5.5` is retired: fall back within the current generation by effort or lane), choosing low or high reasoning. Simple, short, or basic tasks are best done by low reasoning; hard, large, or long tasks by high reasoning. Medium suits read-only investigation and verification runs. Reserve xhigh for explicit per-task escalation on the gnarliest specs (see `~/.config/agents/modules/lanes-and-accounts.md`).
 
 Never route subagent work through Codex "Ultra" mode or fast mode: Ultra currently over-spawns child subagents at inherited effort (known harness bugs), and fast mode bills 2.5× credits — compounded by how long 5.6 runs per turn. Related footgun: if a 5.6 subagent spawns its own children, they inherit its model+effort; the delegation preamble's no-subagents guard covers this — don't drop it.
 
@@ -90,7 +90,7 @@ Canonical invocation (capture output to file, GPT 5.6 Sol with high reasoning):
 
 ```bash
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.6-sol -c 'model_reasoning_effort="high"' \
+  -m gpt-6.1-sol -c 'model_reasoning_effort="high"' \
   -o /tmp/codex-result.txt -
 [TASK CONTEXT]
 You are analyzing /path/to/repo.
@@ -108,7 +108,7 @@ result=$(cat /tmp/codex-result.txt)
 
 **Variants** (only what changes from the canonical form):
 
-- **Low-effort task** (simple search, short fetch, basic lookup): swap `-c 'model_reasoning_effort="high"'` → `-c 'model_reasoning_effort="low"'`. Model stays `gpt-5.6-sol`.
+- **Low-effort task** (simple search, short fetch, basic lookup): swap `-c 'model_reasoning_effort="high"'` → `-c 'model_reasoning_effort="low"'`. Model stays `gpt-6.1-sol`.
 - **Machine-parsable output:** swap `-o /tmp/codex-result.txt` → `--json`, then pipe through `jq -r 'select(.event=="turn.completed") | .content'`. Prefer `-o` whenever possible — it skips JSON parsing and avoids terminal truncation on long outputs.
 
 ## Parallel Subagents
@@ -117,12 +117,12 @@ Spawn multiple subagents for independent tasks — research two topics in parall
 
 ```bash
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -o /tmp/agent-a.txt - &
+  -m gpt-6.1-sol -c 'model_reasoning_effort="high"' -o /tmp/agent-a.txt - &
 Approach A: solve [problem] using [strategy A]. Return diff + rationale.
 EOF
 
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -o /tmp/agent-b.txt - &
+  -m gpt-6.1-sol -c 'model_reasoning_effort="high"' -o /tmp/agent-b.txt - &
 Approach B: solve [problem] using [strategy B]. Return diff + rationale.
 EOF
 
@@ -140,7 +140,7 @@ When the parent is driving a multi-step engagement — each next call is a *judg
 ```bash
 # Step 1: dispatch the first subagent
 cat <<'EOF' | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.6-sol -c 'model_reasoning_effort="high"' \
+  -m gpt-6.1-sol -c 'model_reasoning_effort="high"' \
   -o /tmp/codex-step-1.txt -
 Implement the auth middleware in src/middleware/auth.ts per the spec at docs/auth.md.
 Return: summary of changes + files touched.
@@ -161,7 +161,7 @@ Review the auth middleware changes summarized below for security holes
 EOF
   cat /tmp/codex-step-1.txt
 } | codex exec --yolo --skip-git-repo-check \
-  -m gpt-5.6-sol -c 'model_reasoning_effort="high"' \
+  -m gpt-6.1-sol -c 'model_reasoning_effort="high"' \
   -o /tmp/codex-step-2.txt -
 
 # Step 3: parent reads /tmp/codex-step-2.txt, dispatches a fix pass — or moves
