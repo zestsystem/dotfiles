@@ -7,7 +7,20 @@ description: Iterate a design against the best real-world example of the same th
 
 One or two design passes produce a competent page. Depth comes from many rounds against a real opponent: put the design next to the best existing example of the same surface, have fresh judges score both blind, fix what they find, and repeat. Fifteen rounds is normal. Each round costs little; the result is a design no single pass reaches.
 
-The loop: **pick the opponent → audit → canvas → capture → judge → fix → repeat**, then hand the winning board to the build as the acceptance spec.
+The loop: **requirements ledger → pick the opponent → audit → canvas → capture → judge → fix → repeat**, then hand the winning board to the build as the acceptance spec.
+
+The opponent is a source of craft, not of scope. Copying a better-looking flow that drops a state, a rule or a pathway is a regression, however well it scores.
+
+## 0. Requirements ledger (before any design)
+
+Build the list of what the surface must keep, from the code, specs, tests and the owner's decisions, not from the current board:
+
+- **Pathways**: every way into, through and out of the surface (signed in/out, first time/returning, each role, each platform, deep links, back/cancel, errors and retries).
+- **States**: every state the code can render (loading, empty, partial, error, closed, sold out, pending, done) and what triggers each.
+- **Rules**: product and copy rules the owner set (what may be called done, what blocks, what must never appear), each with where it lives in the code.
+- **Data and edge cases**: limits, counts, permissions, locales, long names.
+
+Each row cites its source (file:line, spec, or the owner's words). Publish it with the audit. The ledger is fixed for the duel; adding a row needs a source, and removing one needs the owner's yes.
 
 ## 1. Pick the opponent
 
@@ -34,6 +47,8 @@ Score your current surface and the opponent on a weighted rubric before designin
 | Phone experience | 5 |
 | Copy quality | 5 |
 | Internal consistency | 5 |
+
+The ledger is a separate pass/fail gate, never a weighted criterion: a round that drops or contradicts a ledger row fails, whatever it scores.
 
 For app screens, swap in task-based criteria (time to first success, error recovery, density vs clarity, platform conventions, accessibility). Keep the rubric fixed for the whole duel. Publish the audit as a page the person can share, and add a row per round.
 
@@ -84,10 +99,12 @@ Lessons that recur:
 - Remove a qualifier that points out concentration ("including X" when X is most of the number).
 - Real counts come from the production database with test, rehearsal and fraud rows excluded.
 
+3. **The ledger holds.** Before applying a fix, check it against every ledger row. A fix borrowed from the opponent that removes a pathway, state or rule is rejected or redesigned to keep it. After each round, walk the ledger against the artboards and mark each row covered (with the artboard) or missing. A missing row blocks the next round.
+
 ## 8. Know when to stop
 
 Stop when the last two rounds are inside the noise floor and the judges' remaining asks need things only people can supply (quotes, consent, real data, a product feature). More rounds won't separate the designs; the build will (real components render sharper than any board). Say so plainly, then:
 
 ## 9. Hand off to the build
 
-Package a reference pack: the final artboards, their static renders, the captures, and every asset under a readable name. The board is the acceptance spec. Build in sections against it, compare rendered output side by side at every viewport, and keep a list of new copy for sign-off before translation.
+Package a reference pack: the ledger with every row mapped to an artboard (and to a test in the build), the final artboards, their static renders, the captures, and every asset under a readable name. The board is the acceptance spec. Build in sections against it, compare rendered output side by side at every viewport, and keep a list of new copy for sign-off before translation.
