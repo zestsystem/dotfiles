@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# worktree-sweep-all — host-wide scheduled run of worktree-sweep over EVERY repo with linked worktrees.
+#
+# Recurring-job declaration (PROTOCOL "declare owner/cadence/...", 2026-08-27):
+#   owner     host (launchd agent `worktree-sweep`, declared in system/shared/claude-code.nix); no session owns it
+#   cadence   daily 04:47 local time (launchd catches up on next wake if the Mac slept through it)
+#   input     every git repo found at depth 1-2 under $WORKTREE_SWEEP_ROOTS (default ~/projects) with >=2 worktrees
+#   output    ~/.claude/logs/worktree-sweep/<date>.log (+ archives in ~/.claude/worktree-archive/<date>/)
+#   approval  none needed: worktree-sweep only removes trees whose work is already on origin/main, older than
+#             --days, with no live process inside, after verifying an archive of tracked + untracked state.
+#             Branch refs are never deleted. Unmerged trees are only REPORTED, never removed.
+#   missing   no origin/main, fetch failure or gh failure -> that repo/tree is kept (fail closed), logged
+#   retries   idempotent: a rerun re-classifies from scratch; a lock dir prevents overlapping runs
+#   billing   none: no model calls, no paid CI
+set -uo pipefail
+export PATH="/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+DAYS="${WORKTREE_SWEEP_DAYS:-7}"           # merged trees idle this long are removed
+STALE_DAYS="${WORKTREE_SWEEP_STALE_DAYS:-30}" # unmerged trees idle this long are listed for a human
+ARCHIVE_KEEP_DAYS=90
+ROOTS="${WORKTREE_SWEEP_ROOTS:-$HOME/projects}"
+SWEEP="$(dirname "$0")/worktree-sweep"
+LOGDIR="$HOME/.claude/logs/worktree-sweep"; mkdir -p "$LOGDIR"
+LOG="$LOGDIR/$(date +%F).log"
+DRY=""; [ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
+
+LOCK="$HOME/.claude/logs/worktree-sweep/.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  # stale lock from a crashed run (older than 6h) is reclaimed; a live one wins
+  if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +360 2>/dev/null)" ]; then rmdir "$LOCK" && mkdir "$LOCK" || exit 0
+  else echo "worktree-sweep-all: another run holds $LOCK" >&2; exit 0; fi
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+exec > >(tee -a "$LOG") 2>&1
+echo "=== worktree-sweep-all $(date '+%F %T %Z') days=$DAYS ${DRY:-live}"
+
+stale_cut=$(date -v-"${STALE_DAYS}"d +%F 2>/dev/null || date -d "${STALE_DAYS} days ago" +%F)
+seen=""
+for cand in $(find $ROOTS -mindepth 1 -maxdepth 2 -type d 2>/dev/null); do
+  [ -e "$cand/.git" ] || [ -f "$cand/HEAD" ] || continue
+  common=$(git -C "$cand" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || continue
+  case " $seen " in *" $common "*) continue ;; esac
+  seen="$seen $common"
+  n=$(git -C "$cand" worktree list --porcelain 2>/dev/null | grep -c '^worktree ')
+  [ "$n" -ge 2 ] || continue
+  # run from a non-bare worktree of the repo
+  wt=$(git -C "$cand" worktree list --porcelain | awk '/^worktree /{w=$2} /^bare/{w=""} /^$/{if(w){print w; exit}}')
+  [ -n "$wt" ] || wt=$(git -C "$cand" worktree list --porcelain | awk '/^worktree /{print $2}' | sed -n 2p)
+  echo; echo "--- repo $common ($n worktrees, via $wt)"
+  if ! git -C "$wt" rev-parse --verify -q origin/main >/dev/null; then echo "SKIP  no origin/main"; continue; fi
+  out=$(cd "$wt" && "$SWEEP" --days "$DAYS" $DRY)
+  printf '%s\n' "$out" | grep -v ' (unmerged work)$\| (recent: '
+  # human-decision list: trees the sweep called unmerged, idle past STALE_DAYS
+  stale=0
+  while IFS= read -r t; do
+    last=$(git -C "$t" log -1 --format=%cs 2>/dev/null) || continue
+    [ "$last" \< "$stale_cut" ] || continue
+    stale=$((stale+1)); echo "STALE $t (unmerged, last commit $last)"
+  done < <(printf '%s\n' "$out" | sed -n 's/^KEEP  \(.*\) (unmerged work)$/\1/p')
+  echo "REPORT unmerged worktrees idle >${STALE_DAYS}d (left for a human): $stale"
+done
+
+[ -n "$DRY" ] || find "$HOME/.claude/worktree-archive" -mindepth 1 -maxdepth 1 -type d -mtime +"$ARCHIVE_KEEP_DAYS" -exec rm -rf {} + 2>/dev/null
+find "$LOGDIR" -name '*.log' -mtime +"$ARCHIVE_KEEP_DAYS" -delete 2>/dev/null
+echo "=== done $(date '+%T'); free $(df -h "$HOME" | awk 'END{print $4}')"

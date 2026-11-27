@@ -58,5 +58,25 @@ in
         StandardErrorPath = "${config.home.homeDirectory}/.claude/delegation-reports/launchd.err.log";
       };
     };
+    # Daily host-wide worktree sweep (04:47 local) over every repo under ~/projects:
+    # removes only trees already merged to origin/main, idle >7d, no live process,
+    # after archiving tracked+untracked state. Unmerged trees are reported, never removed.
+    # Log: ~/.claude/logs/worktree-sweep/<date>.log
+    agents.worktree-sweep = {
+      enable = true;
+      config = {
+        ProgramArguments = [ "${src}/bin/worktree-sweep-all" ];
+        StartCalendarInterval = [
+          {
+            Hour = 4;
+            Minute = 47;
+          }
+        ];
+        LowPriorityIO = true;
+        Nice = 10;
+        StandardOutPath = "${config.home.homeDirectory}/.claude/logs/worktree-sweep/launchd.log";
+        StandardErrorPath = "${config.home.homeDirectory}/.claude/logs/worktree-sweep/launchd.err.log";
+      };
+    };
   };
 }
